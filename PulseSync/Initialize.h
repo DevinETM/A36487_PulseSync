@@ -7,7 +7,7 @@
 #include <libpic30.h>
 #include <uart.h>
 #include "A36487.h"
-#include "ETM_BUFFER_BYTE_64.h"
+//#include "ETM_BUFFER_BYTE_64.h"
 
 // BufferByte Setup
 #define COMMAND_BUFFER_EMPTY  0x00
