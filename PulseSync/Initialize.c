@@ -17,11 +17,11 @@ void InitINT4(void);
 void Initialize(void)
 {
     InitPins();
-    MACRO_ClrWdt()
+    ClrWdt();
     LEDCheck();
-    MACRO_ClrWdt()
+    ClrWdt();
     LEDCheck();
-    MACRO_ClrWdt()
+    ClrWdt();
     //InitUART();
     InitINT3(); //Trigger Interrupt
     InitTimer4();
@@ -61,7 +61,7 @@ void InitPins()
     TRIS_PIN_KEY_LOCK_IN            = TRIS_INPUT_MODE;
     TRIS_PIN_PANEL_IN               = TRIS_INPUT_MODE;
     TRIS_PIN_XRAY_CMD_MISMATCH_IN   = TRIS_INPUT_MODE;
-    PIN_CUSTOMER_BEAM_ENABLE_IN     = !ILL_CUSTOMER_BEAM_ENABLE;
+//    PIN_CUSTOMER_BEAM_ENABLE_IN     = !ILL_CUSTOMER_BEAM_ENABLE;
     TRIS_PIN_CUSTOMER_BEAM_ENABLE_IN = TRIS_INPUT_MODE;
     PIN_CUSTOMER_XRAY_ON_IN         = !ILL_CUSTOMER_XRAY_ON;
     TRIS_PIN_CUSTOMER_XRAY_ON_IN    = TRIS_INPUT_MODE;
@@ -124,10 +124,10 @@ void InitPins()
     PIN_LD_DELAY_GUN_OUT        = 0;
 
     //Bypass these to allow xray on
-    TRIS_PIN_RF_OK             = TRIS_OUTPUT_MODE;
-    PIN_RF_OK                  = 1;
-//    TRIS_PIN_GUN_OK            = TRIS_OUTPUT_MODE;
-//    PIN_GUN_OK                 = 1;
+    TRIS_PIN_RF_OK             = TRIS_INPUT_MODE;
+//    PIN_RF_OK                  = 1;
+    TRIS_PIN_GUN_OK            = TRIS_OUTPUT_MODE;
+    PIN_GUN_OK                 = 1;
     TRIS_PIN_PFN_OK            = TRIS_OUTPUT_MODE;
     PIN_PFN_OK                 = 1;
 

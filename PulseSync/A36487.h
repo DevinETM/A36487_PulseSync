@@ -20,9 +20,6 @@
 #include "ETM_CAN_PUBLIC.h"
 #include "ETM_CAN.h"
 
-//Macros
-#define MACRO_NOP()     {__asm__ volatile ("nop");}
-#define MACRO_ClrWdt()  {__asm__ volatile ("clrwdt");}
 
 //These values are received from the ethernet control board
 typedef struct{
@@ -72,6 +69,7 @@ typedef struct{
     unsigned char personality;      //1=UL, 2=L, 3=M, 4=H
     unsigned char last_trigger_filtered;
     unsigned char energy;
+    unsigned char enable_high_voltage;
     unsigned char enable_pulses;
     unsigned char state_machine;
     unsigned char local_state;      //same definitions as system state

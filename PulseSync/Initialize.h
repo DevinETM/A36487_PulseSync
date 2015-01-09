@@ -63,10 +63,10 @@
 
 // CONTROL to board A35487
 #define TRIS_PIN_CUSTOMER_BEAM_ENABLE_IN    _TRISG2
-#define PIN_CUSTOMER_BEAM_ENABLE_IN         _LATG2
+#define PIN_CUSTOMER_BEAM_ENABLE_IN         _RG2
 #define ILL_CUSTOMER_BEAM_ENABLE            1
 #define TRIS_PIN_CUSTOMER_XRAY_ON_IN        _TRISG3	
-#define PIN_CUSTOMER_XRAY_ON_IN             _LATG3
+#define PIN_CUSTOMER_XRAY_ON_IN             _RG3
 #define ILL_CUSTOMER_XRAY_ON                1
 #define TRIS_PIN_CPU_XRAY_ENABLE_OUT        _TRISC13
 #define TRIS_PIN_CPU_HV_ENABLE_OUT          _TRISD8
@@ -165,8 +165,8 @@
 //Bypass these to allow xray on
 #define TRIS_PIN_RF_OK                      _TRISA7
 #define PIN_RF_OK                           _RA7
-//#define TRIS_PIN_GUN_OK                     _TRISA8
-//#define PIN_GUN_OK                          _RA8
+#define TRIS_PIN_GUN_OK                     _TRISA6
+#define PIN_GUN_OK                          _RA6
 #define TRIS_PIN_PFN_OK                     _TRISG0
 #define PIN_PFN_OK                          _RG0
 

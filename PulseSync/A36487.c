@@ -24,35 +24,35 @@ void SetStatusAndLEDs(void);
 
 void DoPulseSync(void) {
     psb_data.state_machine = STATE_INIT;
-    MACRO_ClrWdt()
+    ClrWdt();
     ETMCanInitialize();
 
     while (1) {
         switch (psb_data.state_machine) {
             case STATE_INIT:
-                MACRO_ClrWdt()
+                ClrWdt();
                 Initialize();
                 //ETMCanInitialize();
-                MACRO_ClrWdt()
+                ClrWdt();
                 psb_data.personality = ReadDosePersonality();
-                MACRO_ClrWdt()
+                ClrWdt();
                 psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
                 break;
 
             case STATE_WAIT_FOR_CONFIG:
-                MACRO_ClrWdt()
+                ClrWdt();
                 SetStatusAndLEDs();
                 ETMCanDoCan();
                 break;
 
             case STATE_RUN:
-                MACRO_ClrWdt()
+                ClrWdt();
                 SetStatusAndLEDs();
                 ETMCanDoCan();
                 break;
 
             case STATE_FAULT:
-                MACRO_ClrWdt()
+                ClrWdt();
                 psb_data.enable_pulses = 0;
                 SetStatusAndLEDs();
                 ETMCanDoCan();
@@ -111,12 +111,12 @@ void ReadTrigPulseWidth(void)
       unsigned char i;
 
       PIN_SPI_CLK_OUT  = 0;
-      MACRO_NOP()
+      Nop();
       PIN_PW_SHIFT_OUT = !OLL_PW_SHIFT; // load the reg
-      MACRO_NOP()
+      Nop();
       __delay32(1); // 100ns for 10M TCY
       PIN_PW_SHIFT_OUT = OLL_PW_SHIFT;  // enable shift
-      MACRO_NOP()
+      Nop();
       __delay32(1); // 100ns for 10M TCY
 
       data = PIN_SPI_DATA_IN;
@@ -124,16 +124,16 @@ void ReadTrigPulseWidth(void)
       for (i = 0; i < 8; i++)
       {
       	PIN_SPI_CLK_OUT = 1;
-        MACRO_NOP()
+        Nop();
         data <<= 1;
         data |= PIN_SPI_DATA_IN;
       	PIN_SPI_CLK_OUT = 0;
-        MACRO_NOP()
+        Nop();
         __delay32(1); // 100ns for 10M TCY
       }
 
       PIN_PW_SHIFT_OUT = !OLL_PW_SHIFT; // make load active when idle
-      MACRO_NOP()
+      Nop();
 
       if (data & 0x0100)  // counter overflow
       {
@@ -187,24 +187,24 @@ void ReadAndSetEnergy()
     {
         if (PIN_ENERGY_CMD_IN1 == HI)
         {
-            MACRO_NOP()
+            Nop();
             PIN_AFC_TRIGGER_OK_OUT = OLL_AFC_TRIGGER_OK;    //Trigger the AFC in high energy only
-            MACRO_NOP()
+            Nop();
             PIN_GUN_POLARITY_OUT = !OLL_GUN_POLARITY;
-            MACRO_NOP()
+            Nop();
             PIN_ENERGY_CPU_OUT = !OLL_ENERGY_CPU;
-            MACRO_NOP()
+            Nop();
             psb_data.energy = HI;
         }
         else
         {
-            MACRO_NOP()
+            Nop();
             PIN_AFC_TRIGGER_OK_OUT = !OLL_AFC_TRIGGER_OK;   //Do not trigger the AFC in low energy
-            MACRO_NOP()
+            Nop();
             PIN_GUN_POLARITY_OUT = !OLL_GUN_POLARITY;
-            MACRO_NOP()
+            Nop();
             PIN_ENERGY_CPU_OUT = OLL_ENERGY_CPU;
-            MACRO_NOP()
+            Nop();
             psb_data.energy = LOW;
         }
     }
@@ -212,24 +212,24 @@ void ReadAndSetEnergy()
     {
         if (PIN_HIGH_MODE_IN == HI)
         {
-            MACRO_NOP()
+            Nop();
             PIN_AFC_TRIGGER_OK_OUT = OLL_AFC_TRIGGER_OK;    //Trigger the AFC in single energy mode
-            MACRO_NOP()
+            Nop();
             PIN_GUN_POLARITY_OUT = OLL_GUN_POLARITY;
-            MACRO_NOP()
+            Nop();
             PIN_ENERGY_CPU_OUT = OLL_ENERGY_CPU;
-            MACRO_NOP()
+            Nop();
             psb_data.energy = LOW;
         }
         else
         {
-            MACRO_NOP()
+            Nop();
             PIN_AFC_TRIGGER_OK_OUT = OLL_AFC_TRIGGER_OK;    //Trigger the AFC in single energy mode
-            MACRO_NOP()
+            Nop();
             PIN_GUN_POLARITY_OUT = OLL_GUN_POLARITY;
-            MACRO_NOP()
+            Nop();
             PIN_ENERGY_CPU_OUT = !OLL_ENERGY_CPU;
-            MACRO_NOP()
+            Nop();
             psb_data.energy = HI;
         }
     }
@@ -243,9 +243,9 @@ void ProgramShiftRegisters(void)
     unsigned long bittemp;
 
     PIN_PW_CLR_CNT_OUT = OLL_PW_CLR_CNT;			 // clear width count
-    MACRO_NOP()
+    Nop();
     PIN_PW_HOLD_LOWRESET_OUT = !OLL_PW_HOLD_LOWRESET;	 // reset start to disable pulse
-    MACRO_NOP()
+    Nop();
 
     // do inteplation for grid delay and grid width
     for (p = 0; p < 4; p++)
@@ -331,7 +331,7 @@ void ProgramShiftRegisters(void)
         for (q = 0; q < 8; q++)
         {
             PIN_SPI_CLK_OUT = 0;
-            MACRO_NOP()
+            Nop();
 
             bittemp = temp & 0x80;
             temp = temp << 1;
@@ -339,47 +339,47 @@ void ProgramShiftRegisters(void)
             if (bittemp == 0x80)
             {
                 PIN_SPI_DATA_OUT = 1;
-                MACRO_NOP()
+                Nop();
             }
             else
             {
                 PIN_SPI_DATA_OUT = 0;
-                MACRO_NOP()
+                Nop();
             }
 
             PIN_SPI_CLK_OUT = 1;
-            MACRO_NOP()
+            Nop();
         }
 
         if (p == 1)						//Latch Gun delay and width data into shift registers
         {
             PIN_LD_DELAY_GUN_OUT = 0;
-            MACRO_NOP()
+            Nop();
             PIN_LD_DELAY_GUN_OUT = 1;
-            MACRO_NOP()
+            Nop();
         }
         else if (p == 3)				//Latch PFN/RF delay data into shift registers
         {
             PIN_LD_DELAY_PFN_OUT = 0;
-            MACRO_NOP()
+            Nop();
             PIN_LD_DELAY_PFN_OUT = 1;
-            MACRO_NOP()
+            Nop();
         }
         else if (p == 5)				//Latch AFC/Dose delay data into shift registers
         {
             PIN_LD_DELAY_AFC_OUT = 0;
-            MACRO_NOP()
+            Nop();
             PIN_LD_DELAY_AFC_OUT = 1;
-            MACRO_NOP()
+            Nop();
         }
     }
 
     PIN_PW_CLR_CNT_OUT = !OLL_PW_CLR_CNT;			 // enable width count
-    MACRO_NOP()
+    Nop();
     if (PIN_TRIG_INPUT != ILL_TRIG_ON)
     {
     	PIN_PW_HOLD_LOWRESET_OUT = OLL_PW_HOLD_LOWRESET;   // clear reset only when trig pulse is low
-        MACRO_NOP()
+        Nop();
     	psb_faults.trigger_fault = 0;
     }
     else
@@ -410,6 +410,7 @@ void SetStatusAndLEDs(void) {
         psb_faults.can_comm_fault = 0;
         psb_faults.prf_fault = 0;
         psb_faults.reset_faults = 0;
+        psb_faults.inhibit_pulsing = 0;
     }
 
     if (psb_data.prf >= MAX_FREQUENCY) {
@@ -430,35 +431,41 @@ void SetStatusAndLEDs(void) {
             psb_faults.mismatch_fault = 1;
     }
 
+    if (PIN_KEY_LOCK_IN)
+        psb_faults.keylock_fault = 0;
+    else
+        psb_faults.keylock_fault = 1;
+
+    if (PIN_PANEL_IN)
+        psb_faults.panel_fault = 0;
+    else
+        psb_faults.panel_fault = 1;
+
     //State of system
     if (psb_data.system_state < READY)
         psb_data.local_state = psb_data.system_state;
 
-    if (PIN_CUSTOMER_BEAM_ENABLE_IN)
-        psb_data.local_state &= READY;
+    if (etm_can_sync_message.sync_0 & 0b1)
+        psb_data.enable_high_voltage = 0;
+    else
+        psb_data.enable_high_voltage = 1;
 
-    if ((PIN_CUSTOMER_BEAM_ENABLE_IN) &&
-            (PIN_CUSTOMER_XRAY_ON_IN) &&
-            (psb_data.enable_pulses))
+    if ((PIN_CUSTOMER_BEAM_ENABLE_IN) && (psb_data.enable_high_voltage))
+        psb_data.local_state &= READY;
+    else
+        psb_data.local_state &= !READY;
+
+    if ((psb_data.local_state & READY) && (psb_data.enable_pulses))
         psb_data.local_state &= XRAY_ON;
+    else
+        psb_data.local_state &= !XRAY_ON;
 
     //if ((psb_data.system_state != psb_data.local_state) && (psb_data.system_state & XRAY_ON)) {
     //    psb_data.enable_pulses = 0;
     //    psb_faults.inhibit_pulsing = 1;
     //}
     //else
-        psb_data.local_state = psb_data.system_state;
-
-
-    if (psb_data.local_state & READY)
-        PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
-    else
-        PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
-
-    if (psb_data.local_state & XRAY_ON)
-        PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
-    else
-        PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    //    psb_data.local_state = psb_data.system_state; //Use this alone to override faults
 
     //Local State Machine
     if ((psb_data.counter_config_received == 0b1111) && (psb_data.state_machine == STATE_WAIT_FOR_CONFIG))
@@ -469,10 +476,28 @@ void SetStatusAndLEDs(void) {
         psb_data.state_machine = STATE_FAULT;
     }
 
-    if ((psb_faults.panel_fault) || (psb_faults.keylock_fault) || (psb_faults.can_comm_fault)) {
+    if (psb_faults.panel_fault) {
         psb_data.local_state = STANDBY;
         psb_data.state_machine = STATE_FAULT;
     }
+
+    if ((psb_faults.keylock_fault) || (psb_faults.can_comm_fault)) {
+        psb_data.local_state = 0;
+        psb_data.state_machine = STATE_FAULT;
+    }
+
+    psb_data.local_state = psb_data.system_state; //Use this alone to override faults
+
+    //Set the outputs to turn HV on/off or X-Rays on/off
+    if (psb_data.local_state & READY)
+        PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
+    else
+        PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+
+    if (psb_data.local_state & XRAY_ON)
+        PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
+    else
+        PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
 
     //This LED will be used for CAN status
     /*if (psb_data.local_state & WARMING_UP) {               //Warming up
@@ -526,7 +551,7 @@ void SetStatusAndLEDs(void) {
     else
         ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_SUM_FAULT);
 
-    if (psb_data.pulses_off)
+    if (psb_faults.inhibit_pulsing)
         ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_PULSE_INHIBITED);
     else
         ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_PULSE_INHIBITED);
@@ -538,7 +563,7 @@ void SetStatusAndLEDs(void) {
 
     //High Speed Data Logging????????
 
-    if (PIN_CUSTOMER_BEAM_ENABLE_IN)
+    if (PIN_CUSTOMER_BEAM_ENABLE_IN == 1)
         ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_8);
     else
         ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_8);
@@ -608,7 +633,6 @@ void __attribute__((interrupt, no_auto_psv)) _T4Interrupt(void)
         psb_data.prf = psb_data.pulse_counter;
         psb_data.pulse_counter = 0;
         psb_data.prf_counter_100ms = 0;
-        psb_faults.prf_fault = 0;
     }
 
     //CAN Communication Timeout Fault
