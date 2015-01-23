@@ -4,20 +4,15 @@
 
 void Initialize(void);
 void InitPins(void);
-void LEDCheck(void);
 void InitTimer4(void);
 void InitINT3(void);
-
+void InitTimer1(void);
 void Initialize(void)
 {
     InitPins();
-    ClrWdt();
-    LEDCheck();
-    ClrWdt();
-    LEDCheck();
-    ClrWdt();
     InitINT3(); //Trigger Interrupt
     InitTimer4();
+    InitTimer1();
 
     etm_can_my_configuration.firmware_major_rev = FIRMWARE_AGILE_REV;
     etm_can_my_configuration.firmware_branch = FIRMWARE_BRANCH;
@@ -132,187 +127,6 @@ void InitPins()
     COMM_DRIVER_ENABLE_PIN = 0;
     COMM_RX_TRIS = TRIS_INPUT_MODE;
     COMM_TX_TRIS = TRIS_OUTPUT_MODE;
-}
-
-void LEDCheck(void)
-{
-	unsigned int y;
-	unsigned int z = 0xFFFF;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-	
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = OLL_LED_ON;
-	PIN_LED_READY = OLL_LED_ON;
-	PIN_LED_XRAY_ON = OLL_LED_ON;
-	PIN_LED_SUMFLT = OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = OLL_LED_ON;
-	PIN_LED_READY = OLL_LED_ON;
-	PIN_LED_XRAY_ON = OLL_LED_ON;
-	PIN_LED_SUMFLT = OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = OLL_LED_ON;
-	PIN_LED_READY = OLL_LED_ON;
-	PIN_LED_XRAY_ON = OLL_LED_ON;
-	PIN_LED_SUMFLT = OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
-
-	y = 0;
-	while (y != z)
-		y++;
-
-        //PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_LED_STANDBY = !OLL_LED_ON;
-	PIN_LED_READY = !OLL_LED_ON;
-	PIN_LED_XRAY_ON = !OLL_LED_ON;
-	PIN_LED_SUMFLT = !OLL_LED_ON;
 }
 
  void InitINT3()

@@ -50,20 +50,26 @@ typedef struct{
 
 //These values are calculated or measured by the pulse sync board
 typedef struct{
+    unsigned int can_counter_ms;
+    unsigned int led_flash_counter;
+    unsigned int counter_config_received;
+    unsigned int state_machine;
+    unsigned int led_state;        
+    unsigned int last_period;
+    unsigned int period_filtered;
+    unsigned int pulses_on;
+    unsigned int trigger_complete;
     unsigned char trigger_input;    //measured trigger
     unsigned char trigger_filtered; //filtered trigger
     unsigned char grid_delay;       //interpolated delay
     unsigned char grid_width;       //interpolated width
     unsigned char rf_delay;         //calculated RF PCB Delay (target current)
-    unsigned int pulses_on;
     //unsigned int pulses_off;
     //unsigned int prf_pulse_counter;
     //unsigned int prf_counter_100ms;
     //unsigned int can_counter_100ms;
-    unsigned int can_counter_ms;
-    unsigned int heartbeat;
+    //unsigned int heartbeat;
     //unsigned int can_comm_ok;
-    unsigned int counter_config_received;
     //unsigned char prf;
     //unsigned char prf_ok_to_pulse;  //Limits the prf to 2.4ms period
     unsigned char personality;      //1=UL, 2=L, 3=M, 4=H
@@ -71,11 +77,7 @@ typedef struct{
     unsigned char energy;
     //unsigned char enable_high_voltage;
     //unsigned char enable_pulses;
-    unsigned char state_machine;
     //unsigned char local_state;      //same definitions as system state
-    unsigned char led_state;        
-    unsigned int last_period;
-    unsigned int period_filtered;
 } PSB_DATA;
 
 //typedef struct{
@@ -168,5 +170,7 @@ extern PSB_DATA psb_data;
 #define LED_STANDBY_STATUS                        (psb_data.led_state & 0x0002)
 #define LED_READY_STATUS                          (psb_data.led_state & 0x0004)
 #define LED_SUM_FAULT_STATUS                      (psb_data.led_state & 0x0008)
+
+#define LED_STARTUP_FLASH_TIME                    300 // 3 Seconds
 
 #endif

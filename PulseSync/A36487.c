@@ -21,6 +21,7 @@ void ProgramShiftRegisters(void);
 unsigned int GetInterpolationValue(unsigned int low_point, unsigned int high_point, unsigned low_value, unsigned high_value, unsigned point);
 void PulseSyncStateMachine(void);
 void DoA36487(void);
+void DoStartupLEDs(void);
 
 //Processor Setup
 _FOSC(EC & CSW_FSCM_OFF); // Primary Oscillator without PLL and Startup with User Selected Oscillator Source, CLKOUT 10MHz is used to measure trigger width.
@@ -43,7 +44,9 @@ int main(void) {
 
 
 void PulseSyncStateMachine(void) {
-  
+  // LOOP Through the state machine is around 30uS Nominally, 50uS when it processes a sync command
+  // Need to determine how much time processing a trigger takes.
+
   switch (psb_data.state_machine) {
 
   case STATE_INIT:
@@ -58,8 +61,6 @@ void PulseSyncStateMachine(void) {
     psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
     break;
 
-    // DPARKER - Need to create a "FLASH LED" state so that we can communicate over can bus while flashing LEDs at startup
-
   case STATE_WAIT_FOR_CONFIG:
     _CONTROL_NOT_READY = 1;
     _CONTROL_NOT_CONFIGURED = 1;
@@ -68,12 +69,13 @@ void PulseSyncStateMachine(void) {
     while (psb_data.state_machine == STATE_WAIT_FOR_CONFIG) {
       DoA36487();
       ETMCanDoCan();
-      if (psb_data.counter_config_received == 0b1111) {
+      DoStartupLEDs();
+      
+      if ((psb_data.led_flash_counter >= LED_STARTUP_FLASH_TIME) && (psb_data.counter_config_received == 0b1111)) {
 	psb_data.state_machine = STATE_HV_OFF;
       }
     }
     break;
-      
 
   case STATE_HV_OFF:
     _CONTROL_NOT_CONFIGURED = 0;
@@ -104,7 +106,7 @@ void PulseSyncStateMachine(void) {
       DoA36487();
       ETMCanDoCan();
       
-      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY == 0) {
+      if ((_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_X_RAY_ENABLE;
       }
       
@@ -128,7 +130,7 @@ void PulseSyncStateMachine(void) {
       DoA36487();
       ETMCanDoCan();
       
-      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY || _SYNC_CONTROL_PULSE_SYNC_DISABLE_HV) {
+      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY || _SYNC_CONTROL_PULSE_SYNC_DISABLE_HV || (PIN_CUSTOMER_BEAM_ENABLE_IN == !ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_HV_ENABLE;
       }
       
@@ -173,44 +175,23 @@ void PulseSyncStateMachine(void) {
 
 
 void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt(void) {
-
-  _INT3IF = 0;		// Clear Interrupt flag
-  
   // A trigger was recieved.
   // THIS DOES NOT MEAN THAT A PULSE WAS GENERATED
   // If (PIN_CPU_XRAY_ENABLE_OUT == OLL_CPU_XRAY_ENABLE)  && (PIN_CUSTOMER_XRAY_ON_IN == ILL_CUSTOMER_BEAM_ENABLE) then we "Probably" generated a pulse
 
+  _INT3IF = 0;		// Clear Interrupt flag
   
   // Calculate the Trigger PRF
   // TMR1 is used to time the time between INT3 interrupts
   psb_data.last_period = TMR1;
+  TMR1 = 0;
   if (_T1IF) {
     // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
     psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
   }
-  TMR1 = 0;
   _T1IF = 0;
 
-
-  // This is used to detect if the trigger is high (which would cause constant pulses to the system)
-  if (PIN_TRIG_INPUT != ILL_TRIG_ON) {
-    ReadTrigPulseWidth();
-    ReadAndSetEnergy();
-  } else {  // if pulse trig stays on, set to minimum dose and flag fault
-    _FAULT_TRIGGER_STAYED_ON = 1;
-    psb_data.trigger_filtered = 0;
-    
-  }
-  
-  ProgramShiftRegisters();
-  psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_16_TAU);
-
-  if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
-    ETMCanLogCustomPacketC();
-  }
-  
-  psb_data.pulses_on++;       // This counts the pulses
-  ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
+  psb_data.trigger_complete = 1;
 }
 
 void ReadTrigPulseWidth(void)
@@ -511,10 +492,63 @@ unsigned int GetInterpolationValue(unsigned int low_point, unsigned int high_poi
    return (ret);
 }
 
+void DoStartupLEDs(void) {
+  switch ((psb_data.led_flash_counter >> 4) & 0b11)
+    {
+    case 0:
+      PIN_LED_READY   = !OLL_LED_ON;
+      PIN_LED_XRAY_ON = !OLL_LED_ON;
+      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      break;
+
+    case 1:
+      PIN_LED_READY   = OLL_LED_ON;
+      PIN_LED_XRAY_ON = !OLL_LED_ON;
+      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      break;
+
+    case 2:
+      PIN_LED_READY   = !OLL_LED_ON;
+      PIN_LED_XRAY_ON = OLL_LED_ON;
+      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      break;
+
+    case 3:
+      PIN_LED_READY   = !OLL_LED_ON;
+      PIN_LED_XRAY_ON = !OLL_LED_ON;
+      PIN_LED_SUMFLT  = OLL_LED_ON;
+      break;
+    }
+
+}
+
 
 void DoA36487(void) {
   
-
+  if (psb_data.trigger_complete) {
+    psb_data.trigger_complete = 0;
+    
+    // This is used to detect if the trigger is high (which would cause constant pulses to the system)
+    if (PIN_TRIG_INPUT != ILL_TRIG_ON) {
+      ReadTrigPulseWidth();
+      ReadAndSetEnergy();
+    } else {  // if pulse trig stays on, set to minimum dose and flag fault
+      _FAULT_TRIGGER_STAYED_ON = 1;
+      psb_data.trigger_filtered = 0;
+      
+    }
+  
+    ProgramShiftRegisters();
+    psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_4_TAU);
+    
+    if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
+      ETMCanLogCustomPacketC();
+    }
+    
+    psb_data.pulses_on++;       // This counts the pulses
+    ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
+  }
+  
   local_debug_data.debug_0 = psb_data.grid_delay;
   local_debug_data.debug_1 = psb_data.grid_width;
   local_debug_data.debug_2 = psb_data.rf_delay;
@@ -528,7 +562,7 @@ void DoA36487(void) {
   local_debug_data.debug_8 = psb_data.state_machine;
   local_debug_data.debug_9 = psb_data.pulses_on;
   local_debug_data.debug_A = psb_data.last_period;
-  local_debug_data.debug_A = psb_data.period_filtered;
+  local_debug_data.debug_B = psb_data.period_filtered;
 
 
 
@@ -584,19 +618,19 @@ void DoA36487(void) {
 
     // -------------- UPDATE LED OUTPUTS ---------------- //
     if (LED_WARMUP_STATUS) {
-      //PIN_LED_WARMUP = OLL_LED_ON;
+      //PIN_LED_WARMUP = OLL_LED_ON;  // THIS IS NOW THE CAN ACTIVITY LED
       PIN_CPU_WARMUP_OUT = OLL_CPU_WARMUP;
     } else {
-      //PIN_LED_WARMUP = !OLL_LED_ON;
+      //PIN_LED_WARMUP = !OLL_LED_ON; // THIS IS NOW THE CAN ACTIVITY LED
       PIN_CPU_WARMUP_OUT = !OLL_CPU_WARMUP;
     }
     
     if (LED_STANDBY_STATUS) {
       PIN_LED_STANDBY = OLL_LED_ON;
-      PIN_CPU_STANDBY_OUT = OLL_CPU_STANDBY;
+      //PIN_CPU_STANDBY_OUT = OLL_CPU_STANDBY;  // THIS IS NOW THE "OPERATE" LED
     } else {
       PIN_LED_STANDBY = !OLL_LED_ON;
-      PIN_CPU_STANDBY_OUT = !OLL_CPU_STANDBY;
+      //PIN_CPU_STANDBY_OUT = !OLL_CPU_STANDBY; // THIS IS NOW THE "OPERATE" LED
     }
     
     if (LED_READY_STATUS) {
@@ -609,7 +643,7 @@ void DoA36487(void) {
   
     if (LED_SUM_FAULT_STATUS) {
       PIN_LED_SUMFLT = OLL_LED_ON;
-    PIN_CPU_SUMFLT_OUT = OLL_CPU_SUMFLT;
+      PIN_CPU_SUMFLT_OUT = OLL_CPU_SUMFLT;
     } else {
       PIN_LED_SUMFLT = !OLL_LED_ON;
       PIN_CPU_SUMFLT_OUT = !OLL_CPU_SUMFLT;
@@ -621,31 +655,25 @@ void DoA36487(void) {
 
     // This is not needed as the CAN module will generate 
     psb_data.can_counter_ms += 10;
-    if (_CONTROL_CAN_SYNC_REC) {
+    if (etm_can_sync_message.sync_3 == 0xFFFF) {
       psb_data.can_counter_ms = 0;
-      _CONTROL_CAN_SYNC_REC = 0;
+      __builtin_disi(0x3FFF);
+      etm_can_sync_message.sync_3 = 0;
+      __builtin_disi(0x0000);
     }
     if (psb_data.can_counter_ms >= 150) {
       _FAULT_SYNC_TIMEOUT = 1;
-      PIN_LED_SUMFLT = OLL_LED_ON;
     }
     
-    //Heartbeat the standby LED
-    psb_data.heartbeat++;
-    if (psb_data.heartbeat >= 50) {
-      psb_data.heartbeat = 0;
-      if (PIN_LED_STANDBY == OLL_LED_ON) {
-	PIN_LED_STANDBY = !OLL_LED_ON;
-      }
-      else {
-	PIN_LED_STANDBY = OLL_LED_ON;
-      }
-    }
+    psb_data.led_flash_counter++;
+    
+    PIN_LED_STANDBY = ((psb_data.led_flash_counter >> 5) & 0b1);
   }
 }
+
 
 void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void) {
     Nop();
     Nop();
-
+    __asm__ ("Reset");
 }
