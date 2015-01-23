@@ -85,7 +85,7 @@ void PulseSyncStateMachine(void) {
       ETMCanDoCan();
       
       if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV == 0) {
-	psb_data.state_machine = STATE_HV_OFF;
+	psb_data.state_machine = STATE_HV_ENABLE;
       }
       
       if (_FAULT_REGISTER) {
@@ -124,7 +124,7 @@ void PulseSyncStateMachine(void) {
     _CONTROL_NOT_READY = 0;
     PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
     PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
-    while (psb_data.state_machine == STATE_HV_ENABLE) {
+    while (psb_data.state_machine == STATE_X_RAY_ENABLE) {
       DoA36487();
       ETMCanDoCan();
       
@@ -176,46 +176,26 @@ void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt
 
   _INT3IF = 0;		// Clear Interrupt flag
   
-  if (PIN_CPU_XRAY_ENABLE_OUT == OLL_CPU_XRAY_ENABLE) {
-    // A Pulse was (probably) generated - It is possible that the X-Ray was enabled in the 40us between the trigger and when this interrupt is generated
-    // In that case no pulse was generated and we have no way to know that
-    // DPARKER I suppose we could check TMR5 to figure out how long it has been enabled for.  But then it doesn't work if we loop around for more than one pulse
-    TMR5 = 0;                   //Clear 2.4ms interrupt flag
-    _T5IF = 0;
+  // A trigger was recieved.
+  // THIS DOES NOT MEAN THAT A PULSE WAS GENERATED
+  // If (PIN_CPU_XRAY_ENABLE_OUT == OLL_CPU_XRAY_ENABLE)  && (PIN_CUSTOMER_XRAY_ON_IN == ILL_CUSTOMER_BEAM_ENABLE) then we "Probably" generated a pulse
 
-    if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
-      ETMCanLogCustomPacketC();
-    }
-    
-    psb_data.pulses_on++;       // This counts the pulses
-    ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
-
-  } else {
-    // A pulse was NOT Generated - This cause beause the PRF was to high, or because the trigger was recieved when we weren't in STATE_X_RAY_ENABLE
-    
-    if (psb_data.state_machine == STATE_X_RAY_ENABLE) {
-      // The interpulse period was too short
-      _STATUS_OVER_PRF = 1;
-    } else {
-      // We were not in STATE_X_RAY_ENABLE
-      
-    }
-  }
   
   // Calculate the Trigger PRF
   // TMR1 is used to time the time between INT3 interrupts
   psb_data.last_period = TMR1;
   if (_T1IF) {
+    // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
     psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
   }
   TMR1 = 0;
   _T1IF = 0;
 
 
+  // This is used to detect if the trigger is high (which would cause constant pulses to the system)
   if (PIN_TRIG_INPUT != ILL_TRIG_ON) {
     ReadTrigPulseWidth();
     ReadAndSetEnergy();
-    
   } else {  // if pulse trig stays on, set to minimum dose and flag fault
     _FAULT_TRIGGER_STAYED_ON = 1;
     psb_data.trigger_filtered = 0;
@@ -224,6 +204,13 @@ void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt
   
   ProgramShiftRegisters();
   psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_16_TAU);
+
+  if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
+    ETMCanLogCustomPacketC();
+  }
+  
+  psb_data.pulses_on++;       // This counts the pulses
+  ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
 }
 
 void ReadTrigPulseWidth(void)
@@ -575,15 +562,10 @@ void DoA36487(void) {
 
 
   // ------------- UPDATE STATUS -------------------- //
-  if (_SYNC_CONTROL_RESET_ENABLE) {
-    _STATUS_OVER_PRF = 0;
-  }
 
   _STATUS_CUSTOMER_HV_DISABLE = !PIN_CUSTOMER_BEAM_ENABLE_IN;
 
   _STATUS_CUSTOMER_X_RAY_DISABLE = !PIN_CUSTOMER_XRAY_ON_IN;
-
-  // _STATUS_OVER_PRF is set by INT3 
 
   _STATUS_LOW_MODE_OVERRIDE = PIN_LOW_MODE_IN;
   
@@ -602,10 +584,10 @@ void DoA36487(void) {
 
     // -------------- UPDATE LED OUTPUTS ---------------- //
     if (LED_WARMUP_STATUS) {
-      PIN_LED_WARMUP = OLL_LED_ON;
+      //PIN_LED_WARMUP = OLL_LED_ON;
       PIN_CPU_WARMUP_OUT = OLL_CPU_WARMUP;
     } else {
-      PIN_LED_WARMUP = !OLL_LED_ON;
+      //PIN_LED_WARMUP = !OLL_LED_ON;
       PIN_CPU_WARMUP_OUT = !OLL_CPU_WARMUP;
     }
     
@@ -645,6 +627,7 @@ void DoA36487(void) {
     }
     if (psb_data.can_counter_ms >= 150) {
       _FAULT_SYNC_TIMEOUT = 1;
+      PIN_LED_SUMFLT = OLL_LED_ON;
     }
     
     //Heartbeat the standby LED
@@ -658,20 +641,6 @@ void DoA36487(void) {
 	PIN_LED_STANDBY = OLL_LED_ON;
       }
     }
-  }
-}
-
-
-void __attribute__((interrupt, no_auto_psv)) _T5Interrupt(void)
-{
-  // This is a 2.4ms timer.  Used to ensure PRF is not exceeded.
-
-  _T5IF = 0;
-  
-  if (psb_data.state_machine == STATE_X_RAY_ENABLE) {
-    PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
-  } else {
-    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
   }
 }
 

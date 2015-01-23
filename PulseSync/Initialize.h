@@ -95,7 +95,7 @@
 #define OLL_LED_ON                          0
 #define PIN_LED_STANDBY                     _LATG12
 #define TRIS_PIN_LED_STANDBY                _TRISG12
-#define PIN_LED_WARMUP                      _LATG14  //This is used for CAN status
+//#define PIN_LED_WARMUP                      _LATG14  //This is used for CAN status
 #define TRIS_PIN_LED_WARMUP                 _TRISG14
 #define PIN_LED_XRAY_ON                     _LATG15
 #define TRIS_PIN_LED_XRAY_ON                _TRISG15

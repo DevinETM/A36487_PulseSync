@@ -14,7 +14,6 @@
 #define __A36487_h
 #include "A36043.h"
 #include "Initialize.h"
-#include "Version.h"
 #include "ETM_BUFFER_BYTE_64.h"
 #include "ETM_CAN_USER_CONFIG.h"
 #include "ETM_CAN_PUBLIC.h"
@@ -155,7 +154,6 @@ extern PSB_DATA psb_data;
 #define _STATUS_CUSTOMER_HV_DISABLE                _STATUS_0
 #define _STATUS_CUSTOMER_X_RAY_DISABLE             _STATUS_1
 
-#define _STATUS_OVER_PRF                           _STATUS_4
 #define _STATUS_LOW_MODE_OVERRIDE                  _STATUS_5
 #define _STATUS_HIGH_MODE_OVERRIDE                 _STATUS_6
 
