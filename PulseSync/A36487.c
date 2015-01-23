@@ -1,4 +1,5 @@
 #include "A36487.h"
+#include "ETM_RC_FILTER.h"
 
 
 //Global Variables
@@ -6,7 +7,6 @@ CommandStringStruct command_string;
 BUFFERBYTE64 uart2_input_buffer;
 BUFFERBYTE64 uart2_output_buffer;
 PULSE_PARAMETERS psb_params;
-PSB_FAULTS psb_faults;
 PSB_DATA psb_data;
 
 //Limited scope variables
@@ -19,90 +19,211 @@ unsigned char FilterTrigger(unsigned char param);
 void ReadAndSetEnergy(void);
 void ProgramShiftRegisters(void);
 unsigned int GetInterpolationValue(unsigned int low_point, unsigned int high_point, unsigned low_value, unsigned high_value, unsigned point);
-void SetStatusAndLEDs(void);
+void PulseSyncStateMachine(void);
+void DoA36487(void);
+
+//Processor Setup
+_FOSC(EC & CSW_FSCM_OFF); // Primary Oscillator without PLL and Startup with User Selected Oscillator Source, CLKOUT 10MHz is used to measure trigger width.
+//_FWDT(WDT_ON & WDTPSA_512 & WDTPSB_2);  // Watchdog Timer is enabled, 1024ms TIMEOUT
+_FWDT(WDT_ON & WDTPSA_512 & WDTPSB_8);  // 8 Second watchdog timer 
+_FBORPOR(PWRT_64 & BORV_27 & PBOR_ON & MCLR_EN); // Brown out and Power on Timer settings
+_FBS(WR_PROTECT_BOOT_OFF & NO_BOOT_CODE & NO_BOOT_EEPROM & NO_BOOT_RAM);
+_FSS(WR_PROT_SEC_OFF & NO_SEC_CODE & NO_SEC_EEPROM & NO_SEC_RAM);
+_FGS(CODE_PROT_OFF);
+_FICD(PGD);
 
 
-void DoPulseSync(void) {
+int main(void) {
     psb_data.state_machine = STATE_INIT;
-    ClrWdt();
-    ETMCanInitialize();
-
     while (1) {
-        switch (psb_data.state_machine) {
-            case STATE_INIT:
-                ClrWdt();
-                Initialize();
-                //ETMCanInitialize();
-                ClrWdt();
-                psb_data.personality = ReadDosePersonality();
-                ClrWdt();
-                psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
-                break;
-
-            case STATE_WAIT_FOR_CONFIG:
-                ClrWdt();
-                SetStatusAndLEDs();
-                ETMCanDoCan();
-                break;
-
-            case STATE_RUN:
-                ClrWdt();
-                SetStatusAndLEDs();
-                ETMCanDoCan();
-                break;
-
-            case STATE_FAULT:
-                ClrWdt();
-                psb_data.enable_pulses = 0;
-                SetStatusAndLEDs();
-                ETMCanDoCan();
-                break;
-        }
+      PulseSyncStateMachine();
     }
 }
 
-void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt(void)
-{
-    if (psb_data.prf_ok_to_pulse) {
-        TMR5 = 0;                   //Clear 2.4ms interrupt flag
-        _T5IF = 0;
-        psb_data.prf_ok_to_pulse = 0;
+
+
+void PulseSyncStateMachine(void) {
+  
+  switch (psb_data.state_machine) {
+
+  case STATE_INIT:
+    psb_data.personality = 0;
+    Initialize();
+    ETMCanInitialize();    
+    psb_data.personality = ReadDosePersonality();
+    _CONTROL_NOT_READY = 1;
+    _CONTROL_NOT_CONFIGURED = 1;
+    PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
+    break;
+
+    // DPARKER - Need to create a "FLASH LED" state so that we can communicate over can bus while flashing LEDs at startup
+
+  case STATE_WAIT_FOR_CONFIG:
+    _CONTROL_NOT_READY = 1;
+    _CONTROL_NOT_CONFIGURED = 1;
+    PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    while (psb_data.state_machine == STATE_WAIT_FOR_CONFIG) {
+      DoA36487();
+      ETMCanDoCan();
+      if (psb_data.counter_config_received == 0b1111) {
+	psb_data.state_machine = STATE_HV_OFF;
+      }
     }
-    else {
-        psb_faults.prf_fault = 1;
+    break;
+      
+
+  case STATE_HV_OFF:
+    _CONTROL_NOT_CONFIGURED = 0;
+    _CONTROL_NOT_READY = 0;
+    PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    while (psb_data.state_machine == STATE_HV_OFF) {
+      DoA36487();
+      ETMCanDoCan();
+      
+      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV == 0) {
+	psb_data.state_machine = STATE_HV_OFF;
+      }
+      
+      if (_FAULT_REGISTER) {
+	psb_data.state_machine = STATE_FAULT;
+      }
     }
+    break;
 
-    if (PIN_TRIG_INPUT != ILL_TRIG_ON)
-    {
-        psb_data.pulse_counter++;
-        ReadTrigPulseWidth();
-        ReadAndSetEnergy();
 
-        if (psb_data.local_state & XRAY_ON) {
-            psb_data.pulses_on++;
-            psb_data.pulses_off = 0;
-        }
-        else {
-            psb_data.pulses_on = 0;
-            psb_data.pulses_off++;
-        }
+  case STATE_HV_ENABLE:
+    _CONTROL_NOT_CONFIGURED = 0;
+    _CONTROL_NOT_READY = 0;
+    PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    while (psb_data.state_machine == STATE_HV_ENABLE) {
+      DoA36487();
+      ETMCanDoCan();
+      
+      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY == 0) {
+	psb_data.state_machine = STATE_X_RAY_ENABLE;
+      }
+      
+      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV) {
+	psb_data.state_machine = STATE_HV_OFF;
+      }
+
+      if (_FAULT_REGISTER) {
+	psb_data.state_machine = STATE_FAULT;
+      }
     }
-    else  // if pulse trig stays on, set to minimum dose and flag fault
-    {
-        psb_faults.trigger_fault = 1;
-        psb_data.trigger_filtered = 0;
+    break;
 
-        psb_data.pulses_on = 0;
-        psb_data.pulses_off = 0;
+
+  case STATE_X_RAY_ENABLE:
+    _CONTROL_NOT_CONFIGURED = 0;
+    _CONTROL_NOT_READY = 0;
+    PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
+    while (psb_data.state_machine == STATE_HV_ENABLE) {
+      DoA36487();
+      ETMCanDoCan();
+      
+      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY || _SYNC_CONTROL_PULSE_SYNC_DISABLE_HV) {
+	psb_data.state_machine = STATE_HV_ENABLE;
+      }
+      
+      if (_FAULT_REGISTER) {
+	psb_data.state_machine = STATE_FAULT;
+      }
     }
+    break;
 
-    ProgramShiftRegisters();
 
-    ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on + 1);
-//    if (etm_can_status_register.status_word_0 & ETM_CAN_STATUS_WORD_0_HIGH_SPEED_LOGGING_ENABLED)
-        ETMCanLogCustomPacketC();
+  case STATE_FAULT:
+    _CONTROL_NOT_CONFIGURED = 0;
+    _CONTROL_NOT_READY = 1;
+    PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    while (psb_data.state_machine == STATE_FAULT) {
+      DoA36487();
+      ETMCanDoCan();
+      
+      if (_FAULT_REGISTER == 0) {
+	psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
+      }
+    }
+    break;
 
-    _INT3IF = 0;		// Clear Interrupt flag
+      
+  default:
+    _CONTROL_NOT_CONFIGURED = 1;
+    _CONTROL_NOT_READY = 1;
+    PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+    psb_data.state_machine = STATE_UNKNOWN;
+    while (1) {
+      DoA36487();
+      ETMCanDoCan();
+    }
+    break;
+    
+  } // switch (psb_data.state_machine) {
+
+}
+
+
+void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt(void) {
+
+  _INT3IF = 0;		// Clear Interrupt flag
+  
+  if (PIN_CPU_XRAY_ENABLE_OUT == OLL_CPU_XRAY_ENABLE) {
+    // A Pulse was (probably) generated - It is possible that the X-Ray was enabled in the 40us between the trigger and when this interrupt is generated
+    // In that case no pulse was generated and we have no way to know that
+    // DPARKER I suppose we could check TMR5 to figure out how long it has been enabled for.  But then it doesn't work if we loop around for more than one pulse
+    TMR5 = 0;                   //Clear 2.4ms interrupt flag
+    _T5IF = 0;
+
+    if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
+      ETMCanLogCustomPacketC();
+    }
+    
+    psb_data.pulses_on++;       // This counts the pulses
+    ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
+
+  } else {
+    // A pulse was NOT Generated - This cause beause the PRF was to high, or because the trigger was recieved when we weren't in STATE_X_RAY_ENABLE
+    
+    if (psb_data.state_machine == STATE_X_RAY_ENABLE) {
+      // The interpulse period was too short
+      _STATUS_OVER_PRF = 1;
+    } else {
+      // We were not in STATE_X_RAY_ENABLE
+      
+    }
+  }
+  
+  // Calculate the Trigger PRF
+  // TMR1 is used to time the time between INT3 interrupts
+  psb_data.last_period = TMR1;
+  if (_T1IF) {
+    psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
+  }
+  TMR1 = 0;
+  _T1IF = 0;
+
+
+  if (PIN_TRIG_INPUT != ILL_TRIG_ON) {
+    ReadTrigPulseWidth();
+    ReadAndSetEnergy();
+    
+  } else {  // if pulse trig stays on, set to minimum dose and flag fault
+    _FAULT_TRIGGER_STAYED_ON = 1;
+    psb_data.trigger_filtered = 0;
+    
+  }
+  
+  ProgramShiftRegisters();
+  psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_16_TAU);
 }
 
 void ReadTrigPulseWidth(void)
@@ -380,10 +501,10 @@ void ProgramShiftRegisters(void)
     {
     	PIN_PW_HOLD_LOWRESET_OUT = OLL_PW_HOLD_LOWRESET;   // clear reset only when trig pulse is low
         Nop();
-    	psb_faults.trigger_fault = 0;
+    	_FAULT_TRIGGER_STAYED_ON = 0;
     }
     else
-    	psb_faults.trigger_fault = 1;
+    	_FAULT_TRIGGER_STAYED_ON = 1;
 }
 
 // calculate the interpolation value
@@ -403,276 +524,155 @@ unsigned int GetInterpolationValue(unsigned int low_point, unsigned int high_poi
    return (ret);
 }
 
-void SetStatusAndLEDs(void) {
 
-    //Check and Reset faults
-    if (psb_faults.reset_faults) {
-        psb_faults.can_comm_fault = 0;
-        psb_faults.prf_fault = 0;
-        psb_faults.reset_faults = 0;
-        psb_faults.inhibit_pulsing = 0;
+void DoA36487(void) {
+  
+
+  local_debug_data.debug_0 = psb_data.grid_delay;
+  local_debug_data.debug_1 = psb_data.grid_width;
+  local_debug_data.debug_2 = psb_data.rf_delay;
+  local_debug_data.debug_3 = psb_data.energy;
+
+  local_debug_data.debug_4 = psb_data.trigger_input;
+  local_debug_data.debug_5 = psb_data.trigger_filtered;
+  local_debug_data.debug_6 = psb_data.last_trigger_filtered;
+  local_debug_data.debug_7 = psb_data.personality;
+
+  local_debug_data.debug_8 = psb_data.state_machine;
+  local_debug_data.debug_9 = psb_data.pulses_on;
+  local_debug_data.debug_A = psb_data.last_period;
+  local_debug_data.debug_A = psb_data.period_filtered;
+
+
+
+  // ---------- UPDATE LOCAL FAULTS ------------------- //
+
+  if ((psb_data.state_machine == STATE_FAULT) && (_SYNC_CONTROL_RESET_ENABLE)) {
+    _FAULT_REGISTER = 0;
+  }
+  
+  if (PIN_PANEL_IN == 0) {
+    _FAULT_PANEL = 1;
+  }
+  
+  if (PIN_KEY_LOCK_IN == 0) {
+    _FAULT_KEYLOCK = 1;
+  }
+  
+  if (PIN_XRAY_CMD_MISMATCH_IN == !ILL_XRAY_CMD_MISMATCH) {
+    _FAULT_TIMING_MISMATCH = 1;
+  }
+
+  // _FAULT_TRIGGER_STAYED_ON is set by INT3 Interrupt
+
+  if ((PIN_CUSTOMER_XRAY_ON_IN) && (!PIN_CUSTOMER_BEAM_ENABLE_IN)) {
+    _FAULT_X_RAY_ON_WIHTOUT_HV = 1;
+  }
+  
+  // ---------- END UPDATE LOCAL FAULTS -------------- //
+
+
+
+
+  // ------------- UPDATE STATUS -------------------- //
+  if (_SYNC_CONTROL_RESET_ENABLE) {
+    _STATUS_OVER_PRF = 0;
+  }
+
+  _STATUS_CUSTOMER_HV_DISABLE = !PIN_CUSTOMER_BEAM_ENABLE_IN;
+
+  _STATUS_CUSTOMER_X_RAY_DISABLE = !PIN_CUSTOMER_XRAY_ON_IN;
+
+  // _STATUS_OVER_PRF is set by INT3 
+
+  _STATUS_LOW_MODE_OVERRIDE = PIN_LOW_MODE_IN;
+  
+  _STATUS_HIGH_MODE_OVERRIDE = PIN_HIGH_MODE_IN;
+  
+  etm_can_status_register.data_word_A = psb_data.period_filtered;
+  etm_can_status_register.data_word_B = psb_data.personality;
+  
+  // ------------- END UPDATE STATUS --------------------- //
+
+
+
+  if (_T4IF) {
+    // Run these once every 10ms
+    _T4IF = 0;
+
+    // -------------- UPDATE LED OUTPUTS ---------------- //
+    if (LED_WARMUP_STATUS) {
+      PIN_LED_WARMUP = OLL_LED_ON;
+      PIN_CPU_WARMUP_OUT = OLL_CPU_WARMUP;
+    } else {
+      PIN_LED_WARMUP = !OLL_LED_ON;
+      PIN_CPU_WARMUP_OUT = !OLL_CPU_WARMUP;
     }
-
-    if (psb_data.prf >= MAX_FREQUENCY) {
-        psb_faults.prf_fault = 1;
-        psb_data.enable_pulses = 0;
-        psb_faults.inhibit_pulsing = 1;
+    
+    if (LED_STANDBY_STATUS) {
+      PIN_LED_STANDBY = OLL_LED_ON;
+      PIN_CPU_STANDBY_OUT = OLL_CPU_STANDBY;
+    } else {
+      PIN_LED_STANDBY = !OLL_LED_ON;
+      PIN_CPU_STANDBY_OUT = !OLL_CPU_STANDBY;
     }
-    else
-        psb_faults.prf_fault = 0;
-
-    if (PIN_XRAY_CMD_MISMATCH_IN == !ILL_XRAY_CMD_MISMATCH)
-        psb_faults.mismatch_fault = 1;
-    else
-        psb_faults.mismatch_fault = 0;
-
-    if (PIN_CUSTOMER_XRAY_ON_IN) {
-        if (!PIN_CUSTOMER_BEAM_ENABLE_IN)
-            psb_faults.mismatch_fault = 1;
+    
+    if (LED_READY_STATUS) {
+      PIN_LED_READY = OLL_LED_ON;
+      PIN_CPU_READY_OUT = OLL_CPU_READY;
+    } else {
+      PIN_LED_READY = !OLL_LED_ON;
+      PIN_CPU_READY_OUT = !OLL_CPU_READY;
     }
-
-    if (PIN_KEY_LOCK_IN)
-        psb_faults.keylock_fault = 0;
-    else
-        psb_faults.keylock_fault = 1;
-
-    if (PIN_PANEL_IN)
-        psb_faults.panel_fault = 0;
-    else
-        psb_faults.panel_fault = 1;
-
-    //State of system
-    if (psb_data.system_state < READY)
-        psb_data.local_state = psb_data.system_state;
-
-    if (etm_can_sync_message.sync_0 & 0b1)
-        psb_data.enable_high_voltage = 0;
-    else
-        psb_data.enable_high_voltage = 1;
-
-    if ((PIN_CUSTOMER_BEAM_ENABLE_IN) && (psb_data.enable_high_voltage))
-        psb_data.local_state &= READY;
-    else
-        psb_data.local_state &= !READY;
-
-    if ((psb_data.local_state & READY) && (psb_data.enable_pulses))
-        psb_data.local_state &= XRAY_ON;
-    else
-        psb_data.local_state &= !XRAY_ON;
-
-    //if ((psb_data.system_state != psb_data.local_state) && (psb_data.system_state & XRAY_ON)) {
-    //    psb_data.enable_pulses = 0;
-    //    psb_faults.inhibit_pulsing = 1;
-    //}
-    //else
-    //    psb_data.local_state = psb_data.system_state; //Use this alone to override faults
-
-    //Local State Machine
-    if ((psb_data.counter_config_received == 0b1111) && (psb_data.state_machine == STATE_WAIT_FOR_CONFIG))
-        psb_data.state_machine = STATE_RUN;
-
-    if ((psb_faults.inhibit_pulsing) || (psb_faults.prf_fault) || (psb_faults.trigger_fault) || (psb_faults.mismatch_fault)) {
-        psb_data.local_state &= !XRAY_ON;
-        psb_data.state_machine = STATE_FAULT;
+  
+    if (LED_SUM_FAULT_STATUS) {
+      PIN_LED_SUMFLT = OLL_LED_ON;
+    PIN_CPU_SUMFLT_OUT = OLL_CPU_SUMFLT;
+    } else {
+      PIN_LED_SUMFLT = !OLL_LED_ON;
+      PIN_CPU_SUMFLT_OUT = !OLL_CPU_SUMFLT;
     }
+    
+    // -------------- END UPDATE LED OUTPUTS ---------------- //
+    
 
-    if (psb_faults.panel_fault) {
-        psb_data.local_state = STANDBY;
-        psb_data.state_machine = STATE_FAULT;
+
+    // This is not needed as the CAN module will generate 
+    psb_data.can_counter_ms += 10;
+    if (_CONTROL_CAN_SYNC_REC) {
+      psb_data.can_counter_ms = 0;
+      _CONTROL_CAN_SYNC_REC = 0;
     }
-
-    if ((psb_faults.keylock_fault) || (psb_faults.can_comm_fault)) {
-        psb_data.local_state = 0;
-        psb_data.state_machine = STATE_FAULT;
+    if (psb_data.can_counter_ms >= 150) {
+      _FAULT_SYNC_TIMEOUT = 1;
     }
-
-    psb_data.local_state = psb_data.system_state; //Use this alone to override faults
-
-    //Set the outputs to turn HV on/off or X-Rays on/off
-    if (psb_data.local_state & READY)
-        PIN_CPU_HV_ENABLE_OUT = OLL_CPU_HV_ENABLE;
-    else
-        PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
-
-    if (psb_data.local_state & XRAY_ON)
-        PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
-    else
-        PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
-
-    //This LED will be used for CAN status
-    /*if (psb_data.local_state & WARMING_UP) {               //Warming up
-        PIN_LED_WARMUP = OLL_LED_ON;
-        PIN_CPU_WARMUP_OUT = OLL_CPU_WARMUP;
-    }
-    else {
-        PIN_LED_WARMUP = !OLL_LED_ON;
-        PIN_CPU_WARMUP_OUT = !OLL_CPU_WARMUP;
-    }*/
-
-    //This LED will be used for the pulse sync board heartbeat
-    /*if (psb_data.local_state & STANDBY) {               //Warm (standby)
-        PIN_LED_STANDBY = OLL_LED_ON;
-        PIN_CPU_STANDBY_OUT = OLL_CPU_STANDBY;
-    }
-    else {
-        PIN_LED_STANDBY = !OLL_LED_ON;
-        PIN_CPU_STANDBY_OUT = !OLL_CPU_STANDBY;
-    }*/
-
-    if (psb_data.local_state & READY) {               //Ready
-        PIN_LED_READY = OLL_LED_ON;
-        PIN_CPU_READY_OUT = OLL_CPU_READY;
-    }
-    else {
-        PIN_LED_READY = !OLL_LED_ON;
-        PIN_CPU_READY_OUT = !OLL_CPU_READY;
-    }
-
-    if (psb_data.local_state & XRAY_ON) {               //Xrays
-        PIN_LED_XRAY_ON = OLL_LED_ON;
-    }
-    else {
-        PIN_LED_XRAY_ON = !OLL_LED_ON;
-    }
-
-    if (psb_data.local_state & SUM_FAULT) {               //Fault
-        PIN_LED_SUMFLT = OLL_LED_ON;
-        PIN_CPU_SUMFLT_OUT = OLL_CPU_SUMFLT;
-        psb_data.state_machine = STATE_FAULT;
-    }
-    else {
-        PIN_LED_SUMFLT = !OLL_LED_ON;
-        PIN_CPU_SUMFLT_OUT = !OLL_CPU_SUMFLT;
-    }
-
-    //CAN status register
-    if (psb_data.local_state & SUM_FAULT)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_SUM_FAULT);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_SUM_FAULT);
-
-    if (psb_faults.inhibit_pulsing)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_PULSE_INHIBITED);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_PULSE_INHIBITED);
-
-    if (psb_data.counter_config_received != 0b1111)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_BOARD_WAITING_INITIAL_CONFIG);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_BOARD_WAITING_INITIAL_CONFIG);
-
-    //High Speed Data Logging????????
-
-    if (PIN_CUSTOMER_BEAM_ENABLE_IN == 1)
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_8);
-    else
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_8);
-
-    if (PIN_CUSTOMER_XRAY_ON_IN)
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_9);
-    else
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_9);
-
-    if (psb_faults.panel_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_10);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_10);
-
-    if (psb_faults.keylock_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_11);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_11);
-
-    if (psb_faults.inhibit_pulsing)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_12);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_12);
-
-    if (PIN_LOW_MODE_IN)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_13);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_13);
-
-    if (PIN_HIGH_MODE_IN)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_14);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_14);
-
-    if (psb_faults.prf_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_15);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_0, STATUS_BIT_USER_DEFINED_15);
-
-    if (psb_faults.can_comm_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_1, FAULT_BIT_CAN_BUS_TIMEOUT);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_1, FAULT_BIT_CAN_BUS_TIMEOUT);
-
-    if (psb_faults.mismatch_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_1, FAULT_BIT_USER_DEFINED_1);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_1, FAULT_BIT_USER_DEFINED_1);
-
-    if (psb_faults.trigger_fault)
-        ETMCanSetBit(&etm_can_status_register.status_word_1, FAULT_BIT_USER_DEFINED_2);
-    else
-        ETMCanClearBit(&etm_can_status_register.status_word_1, FAULT_BIT_USER_DEFINED_2);
-
-    etm_can_status_register.data_word_A = 0xFFFF;
-    etm_can_status_register.data_word_B = psb_data.prf;
-
-}
-
-void __attribute__((interrupt, no_auto_psv)) _T4Interrupt(void)
-{
-    // This is a 100ms timer.  Used for PRF Calculation, and the heartbeat
-
-    //Calculate PRF every second
-    psb_data.prf_counter_100ms++;
-    if (psb_data.prf_counter_100ms >= 10) {
-        psb_data.prf = psb_data.pulse_counter;
-        psb_data.pulse_counter = 0;
-        psb_data.prf_counter_100ms = 0;
-    }
-
-    //CAN Communication Timeout Fault
-    psb_data.can_counter_100ms++;
-    if ((psb_data.can_counter_100ms >= 2) && (psb_data.can_comm_ok)) {
-        psb_data.can_counter_100ms = 0;
-        psb_data.can_comm_ok = 0;
-        psb_faults.can_comm_fault = 0;
-    }
-    else if ((psb_data.can_counter_100ms >= 2) && (!psb_data.can_comm_ok)) {
-        psb_data.can_counter_100ms = 0;
-        psb_faults.can_comm_fault = 1;
-    }
-
+    
     //Heartbeat the standby LED
     psb_data.heartbeat++;
-    if (psb_data.heartbeat >= 5) {
-        psb_data.heartbeat = 0;
-        if (PIN_LED_STANDBY == OLL_LED_ON) {
-            PIN_LED_STANDBY = !OLL_LED_ON;
-        }
-        else {
-            PIN_LED_STANDBY = OLL_LED_ON;
-        }
+    if (psb_data.heartbeat >= 50) {
+      psb_data.heartbeat = 0;
+      if (PIN_LED_STANDBY == OLL_LED_ON) {
+	PIN_LED_STANDBY = !OLL_LED_ON;
+      }
+      else {
+	PIN_LED_STANDBY = OLL_LED_ON;
+      }
     }
-
-   TMR4 = 0;
-   _T4IF = 0;
+  }
 }
+
 
 void __attribute__((interrupt, no_auto_psv)) _T5Interrupt(void)
 {
-    // This is a 2.4ms timer.  Used to ensure PRF is not exceeded.
+  // This is a 2.4ms timer.  Used to ensure PRF is not exceeded.
 
-    psb_data.prf_ok_to_pulse = 1;
-
-    TMR5 = 0;
-    _T5IF = 0;
-
-    //The interrupt flag is cleared when a trigger arrives
+  _T5IF = 0;
+  
+  if (psb_data.state_machine == STATE_X_RAY_ENABLE) {
+    PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
+  } else {
+    PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
+  }
 }
 
 void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void) {

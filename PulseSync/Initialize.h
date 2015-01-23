@@ -1,12 +1,9 @@
-
-
 #ifndef  __INITIALIZE_H
 #define __INITIALIZE_H
 #include <p30f6014A.h>
-#include <dsp.h>
-#include <libpic30.h>
-#include <uart.h>
-#include "A36487.h"
+#include <timer.h>
+
+
 //#include "ETM_BUFFER_BYTE_64.h"
 
 // BufferByte Setup

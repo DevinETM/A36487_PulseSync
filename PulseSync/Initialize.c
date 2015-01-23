@@ -1,18 +1,12 @@
-
 #include "Initialize.h"
-//#include "ETM_BUFFER_BYTE_64.h"
-
-
+#include "ETM_CAN_USER_CONFIG.h"
 
 void Initialize(void);
 void InitPins(void);
-void InitADC(void);
 void LEDCheck(void);
 void InitTimer4(void);
 void InitTimer5(void);
-void InitUART(void);
 void InitINT3(void);
-void InitINT4(void);
 
 void Initialize(void)
 {
@@ -22,7 +16,6 @@ void Initialize(void)
     ClrWdt();
     LEDCheck();
     ClrWdt();
-    //InitUART();
     InitINT3(); //Trigger Interrupt
     InitTimer4();
     InitTimer5();
@@ -319,34 +312,6 @@ void LEDCheck(void)
 	PIN_LED_SUMFLT = !OLL_LED_ON;
 }
 
-
- void InitUART()
- {
-  // Initialize the UART
-
-  // ----------------- UART #2 Setup and Data Buffer -------------------------//
-  // Setup the UART input and output buffers
-  BufferByte64Initialize(&uart2_input_buffer);
-  BufferByte64Initialize(&uart2_output_buffer);
-
-  //U1MODE = A35997_U1MODE_VALUE;
-  // U1STA = A35997_U1STA_VALUE;
-  U2BRG = A35997_U2BRG_VALUE;
-  U2MODE = 0b0000000000000000;
-
-  // Begin UART operation
-  command_string.data_state = COMMAND_BUFFER_EMPTY;  // The command buffer is empty
-
-  _U2TXIF = 0;	// Clear the Transmit Interrupt Flag
-  _U2RXIF = 0;	// Clear the Recieve Interrupt Flag
-  _U2TXIE = 1;	// Enable Transmit Interrupts
-  _U2TXIP = 1;  // Low Priority
-  _U2RXIE = 1;	// Enable Recieve Interrupts
-  _U2RXIP = 1;  //Low Priority
-  U2MODEbits.UARTEN = 1;	// And turn the peripheral on
-  U2STA = 0b0000010000000000;   // The U1STA register must be set AFTER the module is enabled for some reason
- }
-
  void InitINT3()
  {
   // Set up Interrupts
@@ -358,27 +323,19 @@ void LEDCheck(void)
   _INT3IP = 7;		// Set interrupt to highest priority
  }
 
- void InitINT4()
- {
-  // Set up Interrupts
-  // Set up external INT4 */
-  // This is the trigger interrupt
-  _INT4IF = 0;		// Clear Interrupt flag
-  _INT4IE = 1;		// Enable INT3 Interrupt
-  _INT4EP = 0; 	        // Interrupt on rising edge
-  _INT4IP = 7;		// Set interrupt to highest priority
- }
-
 void InitTimer4(void)
 {
-    T4CONbits.TCKPS = 0b10;     //64 prescale
-    T4CONbits.TCS = 0;          //Disable Tsync from external clock output
-    PR4 = (FCY / 64 / 10);      //This produces a 100ms interrupt timer (15625)
-    TMR4 = 0;
-    _T4IF = 0;
-    _T4IE = 1;
-    _T4IP = 5;
-    T4CONbits.TON = 1;
+#define T4_PERIOD_US 10000   // 10mS Period
+  T4CON = (T4_ON & T4_IDLE_CON & T4_GATE_OFF & T4_PS_1_8 & T4_SOURCE_INT & T4_32BIT_MODE_OFF);
+  PR4 = (FCY_CLK_MHZ*T4_PERIOD_US/8);
+  TMR4 = 0;
+  _T4IF = 0;
+
+}
+void InitTimer1(void) {
+  // Setup Timer 1 to measure interpulse period.
+  T1CON = (T1_ON & T1_IDLE_CON & T1_GATE_OFF & T1_PS_1_64 & T1_SOURCE_INT);
+  PR1 = 62500;  // 400mS
 }
 
 void InitTimer5(void)

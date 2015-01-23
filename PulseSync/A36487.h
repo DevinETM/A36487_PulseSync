@@ -57,40 +57,39 @@ typedef struct{
     unsigned char grid_width;       //interpolated width
     unsigned char rf_delay;         //calculated RF PCB Delay (target current)
     unsigned int pulses_on;
-    unsigned int pulses_off;
-    unsigned int pulse_counter;
-    unsigned int prf_counter_100ms;
-    unsigned int can_counter_100ms;
+    //unsigned int pulses_off;
+    //unsigned int prf_pulse_counter;
+    //unsigned int prf_counter_100ms;
+    //unsigned int can_counter_100ms;
+    unsigned int can_counter_ms;
     unsigned int heartbeat;
-    unsigned int can_comm_ok;
+    //unsigned int can_comm_ok;
     unsigned int counter_config_received;
-    unsigned char prf;
-    unsigned char prf_ok_to_pulse;  //Limits the prf to 2.4ms period
+    //unsigned char prf;
+    //unsigned char prf_ok_to_pulse;  //Limits the prf to 2.4ms period
     unsigned char personality;      //1=UL, 2=L, 3=M, 4=H
     unsigned char last_trigger_filtered;
     unsigned char energy;
-    unsigned char enable_high_voltage;
-    unsigned char enable_pulses;
+    //unsigned char enable_high_voltage;
+    //unsigned char enable_pulses;
     unsigned char state_machine;
-    unsigned char local_state;      //same definitions as system state
-    unsigned char system_state;     //bit 0 = warming up
-                                    //bit 1 = warm (standby)
-                                    //bit 2 = Ready
-                                    //bit 3 = X-Ray ON
-                                    //bit 4 = Sum Fault
+    //unsigned char local_state;      //same definitions as system state
+    unsigned char led_state;        
+    unsigned int last_period;
+    unsigned int period_filtered;
 } PSB_DATA;
 
-typedef struct{
-    unsigned char trigger_fault;
-    unsigned char mismatch_fault;
-    unsigned char keylock_fault;
-    unsigned char panel_fault;
-    unsigned char prf_fault;
-    unsigned char can_comm_fault;
-    unsigned char inhibit_pulsing;  //Inhibit all output pulses
-    unsigned char reset_faults;     //From ECB
+//typedef struct{
+    //unsigned char trigger_fault;
+    //unsigned char mismatch_fault;
+    //unsigned char keylock_fault;
+    //unsigned char panel_fault;
+    //unsigned char prf_fault;
+    // unsigned char can_comm_fault;
+    // unsigned char inhibit_pulsing;  //Inhibit all output pulses
+    // unsigned char reset_faults;     //From ECB
 
-} PSB_FAULTS;
+//} PSB_FAULTS;
 
 typedef struct  {
   unsigned char command_byte;
@@ -106,7 +105,7 @@ extern CommandStringStruct command_string;
 extern BUFFERBYTE64 uart2_input_buffer;
 extern BUFFERBYTE64 uart2_output_buffer;
 extern PULSE_PARAMETERS psb_params;
-extern PSB_FAULTS psb_faults;
+//extern PSB_FAULTS psb_faults;
 extern PSB_DATA psb_data;
 
 
@@ -117,10 +116,13 @@ extern PSB_DATA psb_data;
 #define LOW             0
 #define MAX_FREQUENCY   410 // Hz
 
-#define STATE_INIT              0
-#define STATE_WAIT_FOR_CONFIG   1
-#define STATE_RUN               2
-#define STATE_FAULT             5
+#define STATE_INIT              10
+#define STATE_WAIT_FOR_CONFIG   20
+#define STATE_HV_OFF            30
+#define STATE_HV_ENABLE         40
+#define STATE_X_RAY_ENABLE      50
+#define STATE_FAULT             60
+#define STATE_UNKNOWN           70
 
 
 //State bits in the customer LED register
@@ -150,6 +152,23 @@ extern PSB_DATA psb_data;
 
 
 
-void DoPulseSync(void);
+#define _STATUS_CUSTOMER_HV_DISABLE                _STATUS_0
+#define _STATUS_CUSTOMER_X_RAY_DISABLE             _STATUS_1
+
+#define _STATUS_OVER_PRF                           _STATUS_4
+#define _STATUS_LOW_MODE_OVERRIDE                  _STATUS_5
+#define _STATUS_HIGH_MODE_OVERRIDE                 _STATUS_6
+
+#define _FAULT_PANEL                               _FAULT_0
+#define _FAULT_KEYLOCK                             _FAULT_1
+#define _FAULT_TIMING_MISMATCH                     _FAULT_2
+#define _FAULT_TRIGGER_STAYED_ON                   _FAULT_3
+#define _FAULT_X_RAY_ON_WIHTOUT_HV                 _FAULT_4
+#define _FAULT_SYNC_TIMEOUT                        _FAULT_5
+
+#define LED_WARMUP_STATUS                         (psb_data.led_state & 0x0001)
+#define LED_STANDBY_STATUS                        (psb_data.led_state & 0x0002)
+#define LED_READY_STATUS                          (psb_data.led_state & 0x0004)
+#define LED_SUM_FAULT_STATUS                      (psb_data.led_state & 0x0008)
 
 #endif

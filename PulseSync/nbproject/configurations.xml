@@ -6,7 +6,6 @@
                    projectFiles="true">
       <itemPath>A36043.h</itemPath>
       <itemPath>Initialize.h</itemPath>
-      <itemPath>main.h</itemPath>
       <itemPath>Version.h</itemPath>
       <itemPath>A36487.h</itemPath>
       <itemPath>ETM_CAN_BOARD_SELECT.h</itemPath>
@@ -14,6 +13,7 @@
       <itemPath>../../P1395_Modules/ETM_CAN.h</itemPath>
       <itemPath>../../P1395_Modules/ETM_CAN_PUBLIC.h</itemPath>
       <itemPath>../../P1395_Modules/ETM_CAN_USER_CONFIG.h</itemPath>
+      <itemPath>../../P1395_Modules/ETM_RC_FILTER.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -24,12 +24,12 @@
                    projectFiles="true">
       <itemPath>A36043.c</itemPath>
       <itemPath>Initialize.c</itemPath>
-      <itemPath>main.c</itemPath>
       <itemPath>A36487.c</itemPath>
       <itemPath>../../ETM_Modules/ETM_BUFFER_BYTE_64/ETM_BUFFER_BYTE_64.c</itemPath>
       <itemPath>../../P1395_Modules/ETM_CAN.c</itemPath>
       <itemPath>../../P1395_Modules/ETM_CAN_USER_CONFIG.c</itemPath>
       <itemPath>../../P1395_Modules/ETM_CAN_UTILITY.s</itemPath>
+      <itemPath>../../P1395_Modules/ETM_RC_FILTER.s</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
