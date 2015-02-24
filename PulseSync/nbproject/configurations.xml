@@ -7,12 +7,13 @@
       <itemPath>A36043.h</itemPath>
       <itemPath>Initialize.h</itemPath>
       <itemPath>A36487.h</itemPath>
-      <itemPath>ETM_CAN_BOARD_SELECT.h</itemPath>
       <itemPath>../../ETM_Modules/ETM_BUFFER_BYTE_64/ETM_BUFFER_BYTE_64.h</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN.h</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN_PUBLIC.h</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN_USER_CONFIG.h</itemPath>
       <itemPath>../../P1395_Modules/ETM_RC_FILTER.h</itemPath>
+      <itemPath>../../P1395_Modules/ETM_ANALOG.h</itemPath>
+      <itemPath>../../P1395_Modules/ETM_SCALE.h</itemPath>
+      <itemPath>../../P1395_Modules/P1395_CAN_SLAVE.h</itemPath>
+      <itemPath>../../P1395_Modules/P1395_MODULE_CONFIG.h</itemPath>
+      <itemPath>../../P1395_Modules/ETM_EEPROM.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -25,10 +26,13 @@
       <itemPath>Initialize.c</itemPath>
       <itemPath>A36487.c</itemPath>
       <itemPath>../../ETM_Modules/ETM_BUFFER_BYTE_64/ETM_BUFFER_BYTE_64.c</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN.c</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN_USER_CONFIG.c</itemPath>
-      <itemPath>../../P1395_Modules/ETM_CAN_UTILITY.s</itemPath>
       <itemPath>../../P1395_Modules/ETM_RC_FILTER.s</itemPath>
+      <itemPath>../../P1395_Modules/ETM_ANALOG.c</itemPath>
+      <itemPath>../../P1395_Modules/ETM_SCALE.s</itemPath>
+      <itemPath>../../P1395_Modules/P1395_CAN_SLAVE.c</itemPath>
+      <itemPath>../../P1395_Modules/P1395_CAN_SLAVE_BOARD_SPECIFIC.c</itemPath>
+      <itemPath>../../P1395_Modules/ETM_CAN_UTILITY.s</itemPath>
+      <itemPath>../../P1395_Modules/ETM_EEPROM_INTERNAL.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -63,7 +67,7 @@
         </archiverTool>
         <loading>
           <useAlternateLoadableFile>false</useAlternateLoadableFile>
-          <parseOnProdLoad>false</parseOnProdLoad>
+          <parseOnProdLoad>true</parseOnProdLoad>
           <alternateLoadableFile></alternateLoadableFile>
         </loading>
       </compileType>
@@ -189,7 +193,7 @@
         <property key="fast-math" value="false"/>
         <property key="generic-16-bit" value="false"/>
         <property key="legacy-libc" value="false"/>
-        <property key="oXC16glb-macros" value=""/>
+        <property key="oXC16glb-macros" value="__A36487"/>
         <property key="output-file-format" value="elf"/>
         <property key="relaxed-math" value="false"/>
         <property key="save-temps" value="false"/>

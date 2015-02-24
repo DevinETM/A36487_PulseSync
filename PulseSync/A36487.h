@@ -15,9 +15,7 @@
 #include "A36043.h"
 #include "Initialize.h"
 #include "ETM_BUFFER_BYTE_64.h"
-#include "ETM_CAN_USER_CONFIG.h"
-#include "ETM_CAN_PUBLIC.h"
-#include "ETM_CAN.h"
+#include "P1395_CAN_SLAVE.h"
 
 
 //These values are received from the ethernet control board
@@ -78,6 +76,8 @@ typedef struct{
     //unsigned char enable_high_voltage;
     //unsigned char enable_pulses;
     //unsigned char local_state;      //same definitions as system state
+
+    unsigned int rep_rate_deci_herz;
 } PSB_DATA;
 
 //typedef struct{

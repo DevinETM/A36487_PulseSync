@@ -1,5 +1,5 @@
 #include "Initialize.h"
-#include "ETM_CAN_USER_CONFIG.h"
+#include "P1395_MODULE_CONFIG.h"
 #include "FIRMWARE_VERSION.h"
 
 void Initialize(void);

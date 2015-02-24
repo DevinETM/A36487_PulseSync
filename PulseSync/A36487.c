@@ -52,8 +52,10 @@ void PulseSyncStateMachine(void) {
   case STATE_INIT:
     psb_data.personality = 0;
     Initialize();
-    ETMCanInitialize();    
+    ETMCanSlaveInitialize();    
     psb_data.personality = ReadDosePersonality();
+    // DPARKER ADDED FOR TESTING TO MAKE IT WORK
+    psb_data.personality = 255;
     _CONTROL_NOT_READY = 1;
     _CONTROL_NOT_CONFIGURED = 1;
     PIN_CPU_HV_ENABLE_OUT = !OLL_CPU_HV_ENABLE;
@@ -68,7 +70,7 @@ void PulseSyncStateMachine(void) {
     PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
     while (psb_data.state_machine == STATE_WAIT_FOR_CONFIG) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
       DoStartupLEDs();
       
       if ((psb_data.led_flash_counter >= LED_STARTUP_FLASH_TIME) && (psb_data.counter_config_received == 0b1111)) {
@@ -84,7 +86,7 @@ void PulseSyncStateMachine(void) {
     PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
     while (psb_data.state_machine == STATE_HV_OFF) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
       
       if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV == 0) {
 	psb_data.state_machine = STATE_HV_ENABLE;
@@ -104,7 +106,7 @@ void PulseSyncStateMachine(void) {
     PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
     while (psb_data.state_machine == STATE_HV_ENABLE) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
       
       if ((_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_X_RAY_ENABLE;
@@ -128,7 +130,7 @@ void PulseSyncStateMachine(void) {
     PIN_CPU_XRAY_ENABLE_OUT = OLL_CPU_XRAY_ENABLE;
     while (psb_data.state_machine == STATE_X_RAY_ENABLE) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
       
       if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY || _SYNC_CONTROL_PULSE_SYNC_DISABLE_HV || (PIN_CUSTOMER_BEAM_ENABLE_IN == !ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_HV_ENABLE;
@@ -148,7 +150,7 @@ void PulseSyncStateMachine(void) {
     PIN_CPU_XRAY_ENABLE_OUT = !OLL_CPU_XRAY_ENABLE;
     while (psb_data.state_machine == STATE_FAULT) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
       
       if (_FAULT_REGISTER == 0) {
 	psb_data.state_machine = STATE_WAIT_FOR_CONFIG;
@@ -165,7 +167,7 @@ void PulseSyncStateMachine(void) {
     psb_data.state_machine = STATE_UNKNOWN;
     while (1) {
       DoA36487();
-      ETMCanDoCan();
+      ETMCanSlaveDoCan();
     }
     break;
     
@@ -524,8 +526,10 @@ void DoStartupLEDs(void) {
 
 
 void DoA36487(void) {
-  
+  unsigned long temp32;
+
   if (psb_data.trigger_complete) {
+    // Do post trigger process
     psb_data.trigger_complete = 0;
     
     // This is used to detect if the trigger is high (which would cause constant pulses to the system)
@@ -541,12 +545,14 @@ void DoA36487(void) {
     ProgramShiftRegisters();
     psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_4_TAU);
     
+
     if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
-      ETMCanLogCustomPacketC();
+      ETMCanSlaveLogCustomPacketC();
     }
     
     psb_data.pulses_on++;       // This counts the pulses
-    ETMCanPulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
+    // DPARKER need to impliment this
+    //ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
   }
   
   local_debug_data.debug_0 = psb_data.grid_delay;
@@ -563,7 +569,7 @@ void DoA36487(void) {
   local_debug_data.debug_9 = psb_data.pulses_on;
   local_debug_data.debug_A = psb_data.last_period;
   local_debug_data.debug_B = psb_data.period_filtered;
-
+  local_debug_data.debug_C = psb_data.rep_rate_deci_herz;
 
 
   // ---------- UPDATE LOCAL FAULTS ------------------- //
@@ -605,7 +611,7 @@ void DoA36487(void) {
   
   _STATUS_HIGH_MODE_OVERRIDE = PIN_HIGH_MODE_IN;
   
-  etm_can_status_register.data_word_A = psb_data.period_filtered;
+  etm_can_status_register.data_word_A = psb_data.rep_rate_deci_herz;
   etm_can_status_register.data_word_B = psb_data.personality;
   
   // ------------- END UPDATE STATUS --------------------- //
@@ -668,6 +674,19 @@ void DoA36487(void) {
     psb_data.led_flash_counter++;
     
     PIN_LED_STANDBY = ((psb_data.led_flash_counter >> 5) & 0b1);
+
+
+    // DPARKER - NEED TO UPDATE THE REP RATE WHEN NOT PULSING!!!!!
+    // Calculate the rep rate
+    temp32 = 1562500;
+    temp32 /= psb_data.period_filtered;
+    psb_data.rep_rate_deci_herz = temp32;
+    if (_T1IF) {
+      // We are pulseing at less than 2.5Hz
+      // Set the rep rate to zero
+      psb_data.rep_rate_deci_herz = 0;
+    }
+
   }
 }
 
