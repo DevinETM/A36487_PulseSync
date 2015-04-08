@@ -551,8 +551,7 @@ void DoA36487(void) {
     }
     
     psb_data.pulses_on++;       // This counts the pulses
-    // DPARKER need to impliment this
-    //ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, (psb_data.pulses_on));
+    ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on);
   }
   
   local_debug_data.debug_0 = psb_data.grid_delay;
