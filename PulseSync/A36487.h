@@ -62,6 +62,10 @@ typedef struct{
     unsigned char grid_delay;       //interpolated delay
     unsigned char grid_width;       //interpolated width
     unsigned char rf_delay;         //calculated RF PCB Delay (target current)
+    unsigned char pfn_delay;
+    unsigned char afc_delay;
+    unsigned char spare_delay;
+    
     //unsigned int pulses_off;
     //unsigned int prf_pulse_counter;
     //unsigned int prf_counter_100ms;
