@@ -339,15 +339,15 @@ void ProgramShiftRegisters(void)
     Nop();
 
     if (psb_data.energy == HI) {
-      psb_data.rf_delay    = psb_params.rf_delay_high;
+      psb_data.dose_sample_delay    = psb_params.dose_sample_delay_high;
       psb_data.pfn_delay   = psb_params.pfn_delay_high;
       psb_data.afc_delay   = psb_params.afc_delay_high;
-      psb_data.spare_delay = psb_params.spare_delay_high;
+      psb_data.magnetron_current_sample_delay = psb_params.magnetron_current_sample_delay_high;
     } else {
-      psb_data.rf_delay    = psb_params.rf_delay_low;
+      psb_data.dose_sample_delay    = psb_params.dose_sample_delay_low;
       psb_data.pfn_delay   = psb_params.pfn_delay_low;
       psb_data.afc_delay   = psb_params.afc_delay_low;
-      psb_data.spare_delay = psb_params.spare_delay_low;
+      psb_data.magnetron_current_sample_delay = psb_params.magnetron_current_sample_delay_low;
     }
      
 
@@ -420,12 +420,12 @@ void ProgramShiftRegisters(void)
         else if (p == 1)
             temp = psb_data.grid_delay;     //Grid Delay
         else if (p == 2) {
-            temp = psb_data.rf_delay;       //RF PCB Delay  // This is not the current monitor trigger
+            temp = psb_data.dose_sample_delay;       //RF PCB Delay  // This is not the current monitor trigger
         }
         else if (p == 3)
             temp = psb_data.pfn_delay;   //PFN Delay
         else if (p == 4)
-            temp = psb_data.spare_delay;      //Dosimeter delay (not used)
+            temp = psb_data.magnetron_current_sample_delay;      //Dosimeter delay (not used)
         else if (p == 5)
             temp = psb_data.afc_delay;   //AFC Delay
         else
@@ -570,7 +570,7 @@ void DoA36487(void) {
   /*
   local_debug_data.debug_0 = psb_data.grid_delay;
   local_debug_data.debug_1 = psb_data.grid_width;
-  local_debug_data.debug_2 = psb_data.rf_delay;
+  local_debug_data.debug_2 = psb_data.dose_sample_delay;
   local_debug_data.debug_3 = psb_data.energy;
 
   local_debug_data.debug_4 = psb_data.trigger_input;
@@ -587,19 +587,19 @@ void DoA36487(void) {
 
   local_debug_data.debug_0 = (psb_params.grid_delay_high3 << 8) + psb_params.grid_delay_high2;
   local_debug_data.debug_1 = (psb_params.grid_delay_high1 << 8) + psb_params.grid_delay_high0;
-  local_debug_data.debug_2 = (psb_params.pfn_delay_high << 8) + psb_params.rf_delay_high;
+  local_debug_data.debug_2 = (psb_params.pfn_delay_high << 8) + psb_params.dose_sample_delay_high;
   
   local_debug_data.debug_3 = (psb_params.grid_width_high3 << 8) + psb_params.grid_width_high2;
   local_debug_data.debug_4 = (psb_params.grid_width_high1 << 8) + psb_params.grid_width_high0;
-  local_debug_data.debug_5 = (psb_params.afc_delay_high << 8) + psb_params.spare_delay_high;
+  local_debug_data.debug_5 = (psb_params.afc_delay_high << 8) + psb_params.magnetron_current_sample_delay_high;
   
   local_debug_data.debug_6 = (psb_params.grid_delay_low3 << 8) + psb_params.grid_delay_low2;
   local_debug_data.debug_7 = (psb_params.grid_delay_low1 << 8) + psb_params.grid_delay_low0;
-  local_debug_data.debug_8 = (psb_params.pfn_delay_low << 8) + psb_params.rf_delay_low;
+  local_debug_data.debug_8 = (psb_params.pfn_delay_low << 8) + psb_params.dose_sample_delay_low;
   
   local_debug_data.debug_9 = (psb_params.grid_width_low3 << 8) + psb_params.grid_width_low2;
   local_debug_data.debug_A = (psb_params.grid_width_low1 << 8) + psb_params.grid_width_low0;
-  local_debug_data.debug_B = (psb_params.afc_delay_low << 8) + psb_params.spare_delay_low;
+  local_debug_data.debug_B = (psb_params.afc_delay_low << 8) + psb_params.magnetron_current_sample_delay_low;
   
 
 

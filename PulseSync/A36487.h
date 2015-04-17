@@ -40,10 +40,10 @@ typedef struct{
     unsigned char pfn_delay_low;
     unsigned char afc_delay_high;
     unsigned char afc_delay_low;
-    unsigned char rf_delay_high;
-    unsigned char rf_delay_low;
-    unsigned char spare_delay_high;
-    unsigned char spare_delay_low;
+    unsigned char dose_sample_delay_high;
+    unsigned char dose_sample_delay_low;
+    unsigned char magnetron_current_sample_delay_high;
+    unsigned char magnetron_current_sample_delay_low;
 } PULSE_PARAMETERS;
 
 //These values are calculated or measured by the pulse sync board
@@ -61,10 +61,10 @@ typedef struct{
     unsigned char trigger_filtered; //filtered trigger
     unsigned char grid_delay;       //interpolated delay
     unsigned char grid_width;       //interpolated width
-    unsigned char rf_delay;         //calculated RF PCB Delay (target current)
+    unsigned char dose_sample_delay;         //calculated RF PCB Delay (target current)
     unsigned char pfn_delay;
     unsigned char afc_delay;
-    unsigned char spare_delay;
+    unsigned char magnetron_current_sample_delay;
     
     //unsigned int pulses_off;
     //unsigned int prf_pulse_counter;
