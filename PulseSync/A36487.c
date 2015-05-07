@@ -191,6 +191,10 @@ void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt
     // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
     psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
   }
+  if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV || _SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY) {
+    // We are not pulsing so set the PRF to the minimum
+    psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
+  }
   _T1IF = 0;
 
   psb_data.trigger_complete = 1;
@@ -617,7 +621,15 @@ void DoA36487(void) {
   if (PIN_KEY_LOCK_IN == 0) {
     _FAULT_KEYLOCK = 1;
   }
+
+  if (PIN_PFN_OK == 0) {
+    _FAULT_PFN_STATUS = 1;
+  }
   
+  if (PIN_RF_OK == 0) {
+    _FAULT_RF_STATUS = 1;
+  }
+
   if (PIN_XRAY_CMD_MISMATCH_IN == !ILL_XRAY_CMD_MISMATCH) {
     _FAULT_TIMING_MISMATCH = 1;
   }

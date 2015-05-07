@@ -116,11 +116,8 @@ void InitPins()
 
     //Bypass these to allow xray on
     TRIS_PIN_RF_OK             = TRIS_INPUT_MODE;
-//    PIN_RF_OK                  = 1;
-    TRIS_PIN_GUN_OK            = TRIS_OUTPUT_MODE;
-    PIN_GUN_OK                 = 1;
-    TRIS_PIN_PFN_OK            = TRIS_OUTPUT_MODE;
-    PIN_PFN_OK                 = 1;
+    TRIS_PIN_GUN_OK            = TRIS_INPUT_MODE;
+    TRIS_PIN_PFN_OK            = TRIS_INPUT_MODE;
 
     //Communications
     COMM_DRIVER_ENABLE_TRIS = TRIS_OUTPUT_MODE;

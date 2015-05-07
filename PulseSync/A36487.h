@@ -169,6 +169,8 @@ extern PSB_DATA psb_data;
 #define _FAULT_TRIGGER_STAYED_ON                   _FAULT_3
 #define _FAULT_X_RAY_ON_WIHTOUT_HV                 _FAULT_4
 #define _FAULT_SYNC_TIMEOUT                        _FAULT_5
+#define _FAULT_PFN_STATUS                          _FAULT_6
+#define _FAULT_RF_STATUS                           _FAULT_7
 
 #define LED_WARMUP_STATUS                         (psb_data.led_state & 0x0001)
 #define LED_STANDBY_STATUS                        (psb_data.led_state & 0x0002)
