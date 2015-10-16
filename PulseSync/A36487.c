@@ -1,11 +1,6 @@
 #include "A36487.h"
-#include "ETM_RC_FILTER.h"
 
 
-//Global Variables
-CommandStringStruct command_string;
-BUFFERBYTE64 uart2_input_buffer;
-BUFFERBYTE64 uart2_output_buffer;
 PULSE_PARAMETERS psb_params;
 PSB_DATA psb_data;
 
@@ -34,11 +29,23 @@ _FGS(CODE_PROT_OFF);
 _FICD(PGD);
 
 
+
+
+
+
+
+void Initialize(void);
+void InitPins(void);
+void InitTimer4(void);
+void InitINT3(void);
+void InitTimer1(void);
+
+
 int main(void) {
-    psb_data.state_machine = STATE_INIT;
-    while (1) {
-      PulseSyncStateMachine();
-    }
+  psb_data.state_machine = STATE_INIT;
+  while (1) {
+    PulseSyncStateMachine();
+  }
 }
 
 
@@ -49,10 +56,15 @@ void PulseSyncStateMachine(void) {
 
   switch (psb_data.state_machine) {
 
+
+#define AGILE_REV      77
+#define SERIAL_NUMBER  100
+
   case STATE_INIT:
     psb_data.personality = 0;
     Initialize();
-    ETMCanSlaveInitialize();    
+    ETMCanSlaveInitialize(CAN_PORT_2, FCY, ETM_CAN_ADDR_PULSE_SYNC_BOARD, _LATG14, 4);
+    ETMCanSlaveLoadConfiguration(36582, 250, AGILE_REV, FIRMWARE_AGILE_REV, FIRMWARE_BRANCH, FIRMWARE_BRANCH_REV, SERIAL_NUMBER);
     psb_data.personality = ReadDosePersonality();
     // DPARKER ADDED FOR TESTING TO MAKE IT WORK
     psb_data.personality = 255;
@@ -88,7 +100,7 @@ void PulseSyncStateMachine(void) {
       DoA36487();
       ETMCanSlaveDoCan();
       
-      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV == 0) {
+      if (ETMCanSlaveGetSyncMsgPulseSyncDisableHV() == 0) {
 	psb_data.state_machine = STATE_HV_ENABLE;
       }
       
@@ -108,11 +120,11 @@ void PulseSyncStateMachine(void) {
       DoA36487();
       ETMCanSlaveDoCan();
       
-      if ((_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
+      if ((ETMCanSlaveGetSyncMsgPulseSyncDisableHV() == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_X_RAY_ENABLE;
       }
       
-      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV) {
+      if (ETMCanSlaveGetSyncMsgPulseSyncDisableHV()) {
 	psb_data.state_machine = STATE_HV_OFF;
       }
 
@@ -132,7 +144,7 @@ void PulseSyncStateMachine(void) {
       DoA36487();
       ETMCanSlaveDoCan();
       
-      if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY || _SYNC_CONTROL_PULSE_SYNC_DISABLE_HV || (PIN_CUSTOMER_BEAM_ENABLE_IN == !ILL_CUSTOMER_BEAM_ENABLE)) {
+      if (ETMCanSlaveGetSyncMsgPulseSyncDisableXray() || ETMCanSlaveGetSyncMsgPulseSyncDisableHV() || (PIN_CUSTOMER_BEAM_ENABLE_IN == !ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_HV_ENABLE;
       }
       
@@ -191,7 +203,7 @@ void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt
     // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
     psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
   }
-  if (_SYNC_CONTROL_PULSE_SYNC_DISABLE_HV || _SYNC_CONTROL_PULSE_SYNC_DISABLE_XRAY) {
+  if (ETMCanSlaveGetSyncMsgPulseSyncDisableHV() || ETMCanSlaveGetSyncMsgPulseSyncDisableXray()) {
     // We are not pulsing so set the PRF to the minimum
     psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
   }
@@ -562,55 +574,40 @@ void DoA36487(void) {
     psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_4_TAU);
     
 
-    if (_SYNC_CONTROL_HIGH_SPEED_LOGGING) {
-      ETMCanSlaveLogCustomPacketC();
+    if (ETMCanSlaveGetSyncMsgHighSpeedLogging()) {
+      ETMCanSlaveLogPulseData(ETM_CAN_DATA_LOG_REGISTER_PULSE_SYNC_FAST_LOG_0,
+			      psb_data.pulses_on,
+			      7,//(psb_data.trigger_input << 8) & psb_data.trigger_filtered,
+			      8,//(psb_data.grid_width << 8) & psb_data.grid_delay,
+			      9);
     }
     
     psb_data.pulses_on++;       // This counts the pulses
-    ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on);
+    ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on, psb_data.rep_rate_deci_herz);
   }
+
+
   
 
-  /*
-  local_debug_data.debug_0 = psb_data.grid_delay;
-  local_debug_data.debug_1 = psb_data.grid_width;
-  local_debug_data.debug_2 = psb_data.dose_sample_delay;
-  local_debug_data.debug_3 = psb_data.energy;
-
-  local_debug_data.debug_4 = psb_data.trigger_input;
-  local_debug_data.debug_5 = psb_data.trigger_filtered;
-  local_debug_data.debug_6 = psb_data.last_trigger_filtered;
-  local_debug_data.debug_7 = psb_data.personality;
-
-  local_debug_data.debug_8 = psb_data.state_machine;
-  local_debug_data.debug_9 = psb_data.pulses_on;
-  local_debug_data.debug_A = psb_data.last_period;
-  local_debug_data.debug_B = psb_data.period_filtered;
-  local_debug_data.debug_C = psb_data.rep_rate_deci_herz;
-  */
-
-  local_debug_data.debug_0 = (psb_params.grid_delay_high3 << 8) + psb_params.grid_delay_high2;
-  local_debug_data.debug_1 = (psb_params.grid_delay_high1 << 8) + psb_params.grid_delay_high0;
-  local_debug_data.debug_2 = (psb_params.pfn_delay_high << 8) + psb_params.dose_sample_delay_high;
-  
-  local_debug_data.debug_3 = (psb_params.grid_width_high3 << 8) + psb_params.grid_width_high2;
-  local_debug_data.debug_4 = (psb_params.grid_width_high1 << 8) + psb_params.grid_width_high0;
-  local_debug_data.debug_5 = (psb_params.afc_delay_high << 8) + psb_params.magnetron_current_sample_delay_high;
-  
-  local_debug_data.debug_6 = (psb_params.grid_delay_low3 << 8) + psb_params.grid_delay_low2;
-  local_debug_data.debug_7 = (psb_params.grid_delay_low1 << 8) + psb_params.grid_delay_low0;
-  local_debug_data.debug_8 = (psb_params.pfn_delay_low << 8) + psb_params.dose_sample_delay_low;
-  
-  local_debug_data.debug_9 = (psb_params.grid_width_low3 << 8) + psb_params.grid_width_low2;
-  local_debug_data.debug_A = (psb_params.grid_width_low1 << 8) + psb_params.grid_width_low0;
-  local_debug_data.debug_B = (psb_params.afc_delay_low << 8) + psb_params.magnetron_current_sample_delay_low;
+  ETMCanSlaveSetDebugRegister(0, (psb_params.grid_delay_high3 << 8) + psb_params.grid_delay_high2);
+  ETMCanSlaveSetDebugRegister(1, (psb_params.grid_delay_high1 << 8) + psb_params.grid_delay_high0);
+  ETMCanSlaveSetDebugRegister(2, (psb_params.pfn_delay_high << 8) + psb_params.dose_sample_delay_high);
+  ETMCanSlaveSetDebugRegister(3, (psb_params.grid_width_high3 << 8) + psb_params.grid_width_high2);
+  ETMCanSlaveSetDebugRegister(4, (psb_params.grid_width_high1 << 8) + psb_params.grid_width_high0);
+  ETMCanSlaveSetDebugRegister(5, (psb_params.afc_delay_high << 8) + psb_params.magnetron_current_sample_delay_high);
+  ETMCanSlaveSetDebugRegister(6, (psb_params.grid_delay_low3 << 8) + psb_params.grid_delay_low2);
+  ETMCanSlaveSetDebugRegister(7, (psb_params.grid_delay_low1 << 8) + psb_params.grid_delay_low0);
+  ETMCanSlaveSetDebugRegister(8, (psb_params.pfn_delay_low << 8) + psb_params.dose_sample_delay_low);
+  ETMCanSlaveSetDebugRegister(9, (psb_params.grid_width_low3 << 8) + psb_params.grid_width_low2);
+  ETMCanSlaveSetDebugRegister(10, (psb_params.grid_width_low1 << 8) + psb_params.grid_width_low0);
+  ETMCanSlaveSetDebugRegister(11, (psb_params.afc_delay_low << 8) + psb_params.magnetron_current_sample_delay_low);
   
 
 
 
   // ---------- UPDATE LOCAL FAULTS ------------------- //
 
-  if ((psb_data.state_machine == STATE_FAULT) && (_SYNC_CONTROL_RESET_ENABLE)) {
+  if ((psb_data.state_machine == STATE_FAULT) && ETMCanSlaveGetSyncMsgResetEnable()) {
     _FAULT_REGISTER = 0;
   }
   
@@ -655,32 +652,29 @@ void DoA36487(void) {
   
   _STATUS_HIGH_MODE_OVERRIDE = PIN_HIGH_MODE_IN;
   
-  etm_can_status_register.data_word_A = psb_data.rep_rate_deci_herz;
-  etm_can_status_register.data_word_B = psb_data.personality;
+  
+  _PERSONALITY_SELECT_BIT_0 = psb_data.personality & 0x0001;
+  _PERSONALITY_SELECT_BIT_1 = psb_data.personality & 0x0002;
   
   // ------------- END UPDATE STATUS --------------------- //
+  
 
 
-
-  if (_T4IF) {
+  if (_T2IF) {
     // Run these once every 10ms
-    _T4IF = 0;
+    _T2IF = 0;
 
     // -------------- UPDATE LED OUTPUTS ---------------- //
     if (LED_WARMUP_STATUS) {
-      //PIN_LED_WARMUP = OLL_LED_ON;  // THIS IS NOW THE CAN ACTIVITY LED
       PIN_CPU_WARMUP_OUT = OLL_CPU_WARMUP;
     } else {
-      //PIN_LED_WARMUP = !OLL_LED_ON; // THIS IS NOW THE CAN ACTIVITY LED
       PIN_CPU_WARMUP_OUT = !OLL_CPU_WARMUP;
     }
     
     if (LED_STANDBY_STATUS) {
       PIN_LED_STANDBY = OLL_LED_ON;
-      //PIN_CPU_STANDBY_OUT = OLL_CPU_STANDBY;  // THIS IS NOW THE "OPERATE" LED
     } else {
       PIN_LED_STANDBY = !OLL_LED_ON;
-      //PIN_CPU_STANDBY_OUT = !OLL_CPU_STANDBY; // THIS IS NOW THE "OPERATE" LED
     }
     
     if (LED_READY_STATUS) {
@@ -704,6 +698,7 @@ void DoA36487(void) {
 
 
     // This is not needed as the CAN module will generate 
+    /*
     psb_data.can_counter_ms += 10;
     if (etm_can_sync_message.sync_3 == 0xFFFF) {
       psb_data.can_counter_ms = 0;
@@ -714,7 +709,7 @@ void DoA36487(void) {
     if (psb_data.can_counter_ms >= 150) {
       _FAULT_SYNC_TIMEOUT = 1;
     }
-    
+    */
     psb_data.led_flash_counter++;
     
     PIN_LED_STANDBY = ((psb_data.led_flash_counter >> 5) & 0b1);
@@ -739,4 +734,315 @@ void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void) {
     Nop();
     Nop();
     __asm__ ("Reset");
+}
+
+
+
+
+
+
+
+
+
+
+
+void Initialize(void) {
+  InitPins();
+  InitINT3(); //Trigger Interrupt
+  InitTimer4();
+  InitTimer1();
+  
+}
+
+void InitPins() {
+  //Trigger Measurement Pins
+  TRIS_PIN_TRIG_INPUT             = TRIS_INPUT_MODE;
+  PIN_PW_SHIFT_OUT                = !OLL_PW_SHIFT;
+  PIN_PW_CLR_CNT_OUT              = !OLL_PW_CLR_CNT;                // clear active
+  PIN_PW_HOLD_LOWRESET_OUT        = !OLL_PW_HOLD_LOWRESET;	 // reset active
+  TRIS_PIN_PW_SHIFT_OUT           = TRIS_OUTPUT_MODE;
+  TRIS_PIN_PW_CLR_CNT_OUT         = TRIS_OUTPUT_MODE;
+  TRIS_PIN_PW_HOLD_LOWRESET_OUT   = TRIS_OUTPUT_MODE;
+  TRIS_PIN_40US_IN1               = TRIS_INPUT_MODE;
+  TRIS_PIN_40US_IN2               = TRIS_INPUT_MODE;
+  TRIS_PIN_TRIG_INPUT             = TRIS_INPUT_MODE;
+  
+  // Personality ID Pins
+  PIN_ID_SHIFT_OUT            = !OLL_ID_SHIFT;
+  TRIS_PIN_ID_SHIFT_OUT       = TRIS_OUTPUT_MODE;
+  PIN_ID_CLK_OUT              = !OLL_ID_CLK;
+  TRIS_PIN_ID_CLK_OUT         = TRIS_OUTPUT_MODE;
+  TRIS_PIN_ID_DATA_IN         = TRIS_INPUT_MODE;
+  
+  //Spare pins (not used in current application)
+  TRIS_PIN_PACKAGE_ID1_IN         = TRIS_INPUT_MODE;
+  TRIS_PIN_READY_FOR_ANALOG_OUT   = TRIS_OUTPUT_MODE;
+  PIN_READY_FOR_ANALOG_OUT        = OLL_READY_FOR_ANALOG;
+  
+  //Control to PFN control board for Gantry/Portal Selection
+  TRIS_PIN_MODE_OUT           = TRIS_OUTPUT_MODE;
+  
+  //Hardware Status
+  TRIS_PIN_KEY_LOCK_IN            = TRIS_INPUT_MODE;
+  TRIS_PIN_PANEL_IN               = TRIS_INPUT_MODE;
+  TRIS_PIN_XRAY_CMD_MISMATCH_IN   = TRIS_INPUT_MODE;
+  //    PIN_CUSTOMER_BEAM_ENABLE_IN     = !ILL_CUSTOMER_BEAM_ENABLE;
+  TRIS_PIN_CUSTOMER_BEAM_ENABLE_IN = TRIS_INPUT_MODE;
+  PIN_CUSTOMER_XRAY_ON_IN         = !ILL_CUSTOMER_XRAY_ON;
+  TRIS_PIN_CUSTOMER_XRAY_ON_IN    = TRIS_INPUT_MODE;
+  
+  //Energy Select Pins
+  TRIS_PIN_LOW_MODE_IN        = TRIS_INPUT_MODE;
+  TRIS_PIN_HIGH_MODE_IN 	= TRIS_INPUT_MODE;
+  PIN_ENERGY_CPU_OUT          = !OLL_ENERGY_CPU;
+  TRIS_PIN_ENERGY_CPU_OUT     = TRIS_OUTPUT_MODE;
+  TRIS_PIN_AFC_TRIGGER_OK_OUT = TRIS_OUTPUT_MODE;
+  PIN_AFC_TRIGGER_OK_OUT      = OLL_AFC_TRIGGER_OK;
+  PIN_RF_POLARITY_OUT         = OLL_RF_POLARITY;
+  TRIS_PIN_RF_POLARITY_OUT    = TRIS_OUTPUT_MODE;
+  PIN_HVPS_POLARITY_OUT       = !OLL_HVPS_POLARITY;
+  TRIS_PIN_HVPS_POLARITY_OUT  = TRIS_OUTPUT_MODE;
+  PIN_GUN_POLARITY_OUT        = !OLL_GUN_POLARITY;
+  TRIS_PIN_GUN_POLARITY_OUT   = TRIS_OUTPUT_MODE;
+  TRIS_PIN_ENERGY_CMD_IN1     = TRIS_INPUT_MODE;
+  TRIS_PIN_ENERGY_CMD_IN2     = TRIS_INPUT_MODE;
+  
+  //State Hardware Control
+  TRIS_PIN_CPU_HV_ENABLE_OUT      = TRIS_OUTPUT_MODE;
+  PIN_CPU_HV_ENABLE_OUT           = !OLL_CPU_HV_ENABLE;
+  TRIS_PIN_CPU_XRAY_ENABLE_OUT    = TRIS_OUTPUT_MODE;
+  PIN_CPU_XRAY_ENABLE_OUT         = !OLL_CPU_XRAY_ENABLE;
+  TRIS_PIN_CPU_WARNING_LAMP_OUT   = TRIS_OUTPUT_MODE;
+  PIN_CPU_WARNING_LAMP_OUT        = !OLL_CPU_WARNING_LAMP;
+  TRIS_PIN_CPU_STANDBY_OUT        = TRIS_OUTPUT_MODE;
+  PIN_CPU_STANDBY_OUT             = !OLL_CPU_STANDBY;
+  TRIS_PIN_CPU_READY_OUT          = TRIS_OUTPUT_MODE;
+  PIN_CPU_READY_OUT               = !OLL_CPU_READY;
+  TRIS_PIN_CPU_SUMFLT_OUT         = TRIS_OUTPUT_MODE;
+  PIN_CPU_SUMFLT_OUT              = !OLL_CPU_SUMFLT;
+  TRIS_PIN_CPU_WARMUP_OUT         = TRIS_OUTPUT_MODE;
+  //    PIN_CPU_WARMUP_OUT              = !OLL_CPU_WARMUP;
+  
+  //LEDs
+  TRIS_PIN_LED_READY          = TRIS_OUTPUT_MODE;
+  PIN_LED_READY               = !OLL_LED_ON;
+  TRIS_PIN_LED_STANDBY        = TRIS_OUTPUT_MODE;
+  PIN_LED_STANDBY             = !OLL_LED_ON;
+  TRIS_PIN_LED_WARMUP         = TRIS_OUTPUT_MODE;
+  //    PIN_LED_WARMUP              = !OLL_LED_ON;
+  TRIS_PIN_LED_XRAY_ON        = TRIS_OUTPUT_MODE;
+  PIN_LED_XRAY_ON             = !OLL_LED_ON;
+  TRIS_PIN_LED_SUMFLT         = TRIS_OUTPUT_MODE;
+  PIN_LED_SUMFLT              = !OLL_LED_ON;
+  
+  // Pins for loading the delay lines
+  PIN_SPI_CLK_OUT             = 0;
+  TRIS_PIN_SPI_CLK_OUT        = TRIS_OUTPUT_MODE;
+  PIN_SPI_DATA_OUT            = 0;
+  TRIS_PIN_SPI_DATA_OUT       = TRIS_OUTPUT_MODE;
+  TRIS_PIN_SPI_DATA_IN        = TRIS_INPUT_MODE;
+  TRIS_PIN_LD_DELAY_PFN_OUT   = TRIS_OUTPUT_MODE;
+  PIN_LD_DELAY_PFN_OUT        = 0;
+  TRIS_PIN_LD_DELAY_AFC_OUT   = TRIS_OUTPUT_MODE;
+  PIN_LD_DELAY_AFC_OUT        = 0;
+  TRIS_PIN_LD_DELAY_GUN_OUT   = TRIS_OUTPUT_MODE;
+  PIN_LD_DELAY_GUN_OUT        = 0;
+  
+  //Bypass these to allow xray on
+  TRIS_PIN_RF_OK             = TRIS_INPUT_MODE;
+  TRIS_PIN_GUN_OK            = TRIS_INPUT_MODE;
+  TRIS_PIN_PFN_OK            = TRIS_INPUT_MODE;
+  
+  //Communications
+  COMM_DRIVER_ENABLE_TRIS = TRIS_OUTPUT_MODE;
+  COMM_DRIVER_ENABLE_PIN = 0;
+  COMM_RX_TRIS = TRIS_INPUT_MODE;
+  COMM_TX_TRIS = TRIS_OUTPUT_MODE;
+  
+  ADPCFG = 0b0000000011111111;
+  ADCON1 = 0x0000;
+}
+
+void InitINT3() {
+  // Set up Interrupts
+  // Set up external INT3 */
+  // This is the trigger interrupt
+  _INT3IF = 0;		// Clear Interrupt flag
+  _INT3IE = 1;		// Enable INT3 Interrupt
+  _INT3EP = 1; 	        // Interrupt on falling edge
+  _INT3IP = 7;		// Set interrupt to highest priority
+}
+
+void InitTimer4(void) {
+  // 10mS Period
+  T2CON = (T2_ON & T2_IDLE_CON & T2_GATE_OFF & T2_PS_1_8 & T2_SOURCE_INT & T2_32BIT_MODE_OFF);
+  PR2 = 12500;
+  TMR2 = 0;
+  _T2IF = 0;
+}
+
+void InitTimer1(void) {
+  // Setup Timer 1 to measure interpulse period.
+  T1CON = (T1_ON & T1_IDLE_CON & T1_GATE_OFF & T1_PS_1_64 & T1_SOURCE_INT);
+  PR1 = 62500;  // 400mS
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+unsigned char ReadDosePersonality() {
+      unsigned int data;
+      unsigned char i, data1, data2;
+
+      PIN_ID_CLK_OUT   = !OLL_ID_CLK;
+      PIN_ID_SHIFT_OUT = !OLL_ID_SHIFT; // load the reg
+      __delay32(1); // 100ns for 10M TCY
+      PIN_ID_SHIFT_OUT = OLL_ID_SHIFT;  // enable shift
+      __delay32(1); // 100ns for 10M TCY
+
+      data = PIN_ID_DATA_IN;
+
+      for (i = 0; i < 8; i++)
+      {
+      	PIN_ID_CLK_OUT = OLL_ID_CLK;
+        data <<= 1;
+        data |= PIN_ID_DATA_IN;
+      	PIN_ID_CLK_OUT = !OLL_ID_CLK;
+        __delay32(1); // 100ns for 10M TCY
+      }
+
+      //if bits do not match then bad module
+      data1 = data & 0x01;
+      data2 = data & 0x10;
+      if (data1 != (data2 >> 4))
+          return 0xFF;
+      data1 = data & 0x02;
+      data2 = data & 0x20;
+      if (data1 != (data2 >> 4))
+          return 0xFF;
+      data1 = data & 0x04;
+      data2 = data & 0x40;
+      if (data1 != (data2 >> 4))
+          return 0xFF;
+      data1 = data & 0x08;
+      data2 = data & 0x80;
+      if (data1 != (data2 >> 4))
+          return 0xFF;
+
+      //bit 3 is 1 except when 0,1,2 are 1
+      data1 = data & 0x08;
+      data2 = data & 0x07;
+      if (data1 != data2)
+            return 0xFF;
+
+      if (data == ULTRA_LOW_DOSE)
+          return 0x02;
+      else if (data == LOW_DOSE)
+          return 0x04;
+      else if (data == MEDIUM_DOSE)
+          return 0x08;
+      else if (data == HIGH_DOSE)
+          return 0x10;
+      else if (data == 0xFF)
+          return data;
+      else
+        return 0;
+}
+
+
+
+void ETMCanSlaveExecuteCMDBoardSpecific(ETMCanMessage* message_ptr) {
+  unsigned int index_word;
+  unsigned int temp;
+  index_word = message_ptr->word3;
+  switch (index_word) 
+    {
+      /*
+	Place all board specific commands here
+      */
+      
+      
+      
+    case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_HIGH_ENERGY_TIMING_REG_0:
+      temp = (message_ptr->word2 & 0xFF00) >> 8;
+      psb_params.grid_delay_high3 = temp;
+      temp = message_ptr->word2 & 0x00FF;
+      psb_params.grid_delay_high2 = temp;
+      temp = (message_ptr->word1 & 0xFF00) >> 8;
+      psb_params.grid_delay_high1 = temp;
+      temp = message_ptr->word1 & 0x00FF;
+      psb_params.grid_delay_high0 = temp;
+      temp = (message_ptr->word0 & 0xFF00) >> 8;
+      psb_params.pfn_delay_high = temp;
+      temp = message_ptr->word0 & 0x00FF;
+      psb_params.dose_sample_delay_high = temp;
+      psb_data.counter_config_received |= 0b0001;
+      break;
+
+    case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_HIGH_ENERGY_TIMING_REG_1:
+      temp = (message_ptr->word2 & 0xFF00) >> 8;
+      psb_params.grid_width_high3 = temp;
+      temp = message_ptr->word2 & 0x00FF;
+      psb_params.grid_width_high2 = temp;
+      temp = (message_ptr->word1 & 0xFF00) >> 8;
+      psb_params.grid_width_high1 = temp;
+      temp = message_ptr->word1 & 0x00FF;
+      psb_params.grid_width_high0 = temp;
+      temp = (message_ptr->word0 & 0xFF00) >> 8;
+      psb_params.afc_delay_high = temp;
+      temp = message_ptr->word0 & 0x00FF;
+      psb_params.magnetron_current_sample_delay_high = temp;
+      psb_data.counter_config_received |=0b0010;
+      break;
+
+    case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_LOW_ENERGY_TIMING_REG_0:
+      temp = (message_ptr->word2 & 0xFF00) >> 8;
+      psb_params.grid_delay_low3 = temp;
+      temp = message_ptr->word2 & 0x00FF;
+      psb_params.grid_delay_low2 = temp;
+      temp = (message_ptr->word1 & 0xFF00) >> 8;
+      psb_params.grid_delay_low1 = temp;
+      temp = message_ptr->word1 & 0x00FF;
+      psb_params.grid_delay_low0 = temp;
+      temp = (message_ptr->word0 & 0xFF00) >> 8;
+      psb_params.pfn_delay_low = temp;
+      temp = message_ptr->word0 & 0x00FF;
+      psb_params.dose_sample_delay_low = temp;
+      psb_data.counter_config_received |= 0b0100;
+      break;
+
+    case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_LOW_ENERGY_TIMING_REG_1:
+      temp = (message_ptr->word2 & 0xFF00) >> 8;
+      psb_params.grid_width_low3 = temp;
+      temp = message_ptr->word2 & 0x00FF;
+      psb_params.grid_width_low2 = temp;
+      temp = (message_ptr->word1 & 0xFF00) >> 8;
+      psb_params.grid_width_low1 = temp;
+      temp = message_ptr->word1 & 0x00FF;
+      psb_params.grid_width_low0 = temp;
+      temp = (message_ptr->word0 & 0xFF00) >> 8;
+      psb_params.afc_delay_low = temp;
+      temp = message_ptr->word0 & 0x00FF;
+      psb_params.magnetron_current_sample_delay_low = temp;
+      psb_data.counter_config_received |= 0b1000;
+      break;
+
+    case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_CUSTOMER_LED_OUTPUT:
+      psb_data.led_state = message_ptr->word0;
+      break;
+      
+    default:
+      //local_can_errors.invalid_index++;
+      break;
+    }
 }
