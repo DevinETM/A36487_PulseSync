@@ -243,12 +243,14 @@ extern PSB_DATA psb_data;
 #define PIN_HIGH_MODE_IN                    _RB2
 #define TRIS_PIN_HIGH_MODE_IN               _TRISB2
 #define ILL_HIGH_MODE                       1
+
 #define TRIS_PIN_KEY_LOCK_IN                _TRISF7	 
 #define PIN_KEY_LOCK_IN                     _RF7
-#define ILL_KEY_LOCK_ACTIVE                 1
+#define ILL_KEY_LOCK_FAULT                  0
+
 #define TRIS_PIN_PANEL_IN                   _TRISF8	
 #define PIN_PANEL_IN                        _RF8
-#define ILL_PANEL_OPEN                      1
+#define ILL_PANEL_OPEN                      0
 
 // CONTROL to board A35487
 #define TRIS_PIN_CUSTOMER_BEAM_ENABLE_IN    _TRISG2
@@ -354,10 +356,14 @@ extern PSB_DATA psb_data;
 //Bypass these to allow xray on
 #define TRIS_PIN_RF_OK                      _TRISA7
 #define PIN_RF_OK                           _RA7
+#define ILL_PIN_RF_FAULT                    0
+
 #define TRIS_PIN_GUN_OK                     _TRISA6
 #define PIN_GUN_OK                          _RA6
+
 #define TRIS_PIN_PFN_OK                     _TRISG0
 #define PIN_PFN_OK                          _RG0
+#define ILL_PIN_PFN_FAULT                   0
 
 //Communications
 #define COMM_RX_TRIS                        _TRISF4		//U2RX
@@ -385,16 +391,7 @@ extern PSB_DATA psb_data;
 
 
 
-unsigned char ReadDosePersonality(void);
-//
-//  Return:
-//      0x00 = No dose personailty installed
-//      0x02 = Ultra Low Dose Personality Installed
-//      0x04 = Low Dose Personailty Installed
-//      0x08 = Medium Dose Personality Installed
-//      0x10 = High Dose Personailty Installed
-//      0xFF = Problem reading personailty module
-//
+
 
 // These defines are what is actually read from the shift register
 #define HIGH_DOSE       0x77
