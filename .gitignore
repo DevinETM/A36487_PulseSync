@@ -10,7 +10,10 @@
 *.production.cof
 *.production.map
 *.production.elf
+*.hex
 
+# codewright
+*.bak
 
 # Emacs Files to Ignore
 *~

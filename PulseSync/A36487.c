@@ -962,7 +962,7 @@ void ETMCanSlaveExecuteCMDBoardSpecific(ETMCanMessage* message_ptr) {
       break;
       
     default:
-      //local_can_errors.invalid_index++;
+      ETMCanSlaveIncrementInvalidIndex();
       break;
     }
 }
