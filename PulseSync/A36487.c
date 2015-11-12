@@ -8,7 +8,6 @@ unsigned char change_pulse_width_counter;
 const unsigned int  dose_intensities[4] = {15, 95, 175, 255};  // fixed constants
 
 
-
 void DoStateMachine(void);
 void InitializeA36487(void);
 void DoA36487(void);
@@ -350,11 +349,11 @@ void DoA36487(void) {
     // Calculate the rep rate
     temp32 = 1562500;
     temp32 /= psb_data.period_filtered;
-    psb_data.rep_rate_deci_herz = temp32;
-    if (_T1IF || (psb_data.rep_rate_deci_herz < 25)) {
+    log_data_rep_rate_deci_hertz = temp32;
+    if (_T1IF || (log_data_rep_rate_deci_hertz < 25)) {
       // We are pulseing at less than 2.5Hz
       // Set the rep rate to zero
-      psb_data.rep_rate_deci_herz = 0;
+      log_data_rep_rate_deci_hertz = 0;
     }
   
     // Update the debugging Data
@@ -371,9 +370,12 @@ void DoA36487(void) {
     ETMCanSlaveSetDebugRegister(10, (grid_stop_low1 << 8) + grid_stop_low0);
     ETMCanSlaveSetDebugRegister(0xb, psb_data.pulses_on);
     ETMCanSlaveSetDebugRegister(0xC, psb_data.last_period);
-    ETMCanSlaveSetDebugRegister(0xD, psb_data.rep_rate_deci_herz);
+    ETMCanSlaveSetDebugRegister(0xD, log_data_rep_rate_deci_hertz);
     ETMCanSlaveSetDebugRegister(0xE, trigger_counter);
     ETMCanSlaveSetDebugRegister(0xF, psb_data.period_filtered);
+
+    
+
   }
 }
 
@@ -416,25 +418,23 @@ void DoPostTriggerProcess(void) {
     ReadAndSetEnergy();
   } else {  // if pulse trig stays on, set to minimum dose and flag fault
     _FAULT_TRIGGER_STAYED_ON = 1;
-    psb_data.trigger_filtered = 0;
+    trigger_width_filtered = 0;
   }
   
   ProgramShiftRegisters();
   psb_data.period_filtered = RCFilterNTau(psb_data.period_filtered, psb_data.last_period, RC_FILTER_4_TAU);
     
-  
   if (ETMCanSlaveGetSyncMsgHighSpeedLogging()) {
     // Log Pulse by Pulse data
-    // DPARKER - LOG the pulse data
     ETMCanSlaveLogPulseData(ETM_CAN_DATA_LOG_REGISTER_PULSE_SYNC_FAST_LOG_0,
 			    psb_data.pulses_on,
-			    7,//(psb_data.trigger_input << 8) & psb_data.trigger_filtered,
-			    8,//(psb_data.grid_stop << 8) & psb_data.grid_start,
-			    9);
+			    *(unsigned int*)&trigger_width_filtered,
+			    *(unsigned int*)&data_grid_start,
+			    log_data_rep_rate_deci_hertz);
   }
   
   psb_data.pulses_on++;       // This counts the pulses
-  ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on, psb_data.rep_rate_deci_herz);
+  ETMCanSlavePulseSyncSendNextPulseLevel(psb_data.energy, psb_data.pulses_on, log_data_rep_rate_deci_hertz);
 }
 
 
@@ -467,13 +467,13 @@ void ReadTrigPulseWidth(void) {
   Nop();
   
   if (data & 0x0100) {  // counter overflow
-    psb_data.trigger_input = 0xFF;
+    trigger_width = 0xFF;
   } else {
-    psb_data.trigger_input = data & 0xFF;
+    trigger_width = data & 0xFF;
   }
-  psb_data.trigger_filtered = FilterTrigger(psb_data.trigger_input);
+  trigger_width_filtered = FilterTrigger(trigger_width);
   
-  if (psb_data.trigger_filtered < 245) {   //signify to pfn control board what mode to expect
+  if (trigger_width_filtered < 245) {   //signify to pfn control board what mode to expect
     PIN_MODE_OUT = OLL_MODE_PORTAL;   //so it can use a different target
   } else {                                  //current setpoint for low energy
     PIN_MODE_OUT = OLL_MODE_GANTRY;
@@ -570,60 +570,60 @@ void ProgramShiftRegisters(void) {
   
     // do inteplation for grid delay and grid width
   for (p = 0; p < 4; p++) {
-    if (psb_data.trigger_filtered <= dose_intensities[p]) break;
+    if (trigger_width_filtered <= dose_intensities[p]) break;
   }
     
   if (p == 0) {
     if (psb_data.energy == HI) {
-      psb_data.grid_start = grid_start_high0;
-      psb_data.grid_stop = grid_stop_high0;
+      data_grid_start = grid_start_high0;
+      data_grid_stop = grid_stop_high0;
     } else {
-      psb_data.grid_start = grid_start_low0;
-      psb_data.grid_stop = grid_stop_low0;
+      data_grid_start = grid_start_low0;
+      data_grid_stop = grid_stop_low0;
     }
   } else if (p >= 4) {
     if (psb_data.energy == HI) {
-      psb_data.grid_start = grid_start_high3;
-      psb_data.grid_stop = grid_stop_high3;
+      data_grid_start = grid_start_high3;
+      data_grid_stop = grid_stop_high3;
     } else {
-      psb_data.grid_start = grid_start_low3;
-      psb_data.grid_stop = grid_stop_low3;
+      data_grid_start = grid_start_low3;
+      data_grid_stop = grid_stop_low3;
     }
   } else { // interpolation
     if (p == 1) {
       if (psb_data.energy == HI) {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high0, grid_start_high1, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high0, grid_stop_high1, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high0, grid_start_high1, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high0, grid_stop_high1, trigger_width_filtered);
       } else {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low0, grid_start_low1, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low0, grid_stop_low1, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low0, grid_start_low1, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low0, grid_stop_low1, trigger_width_filtered);
       }
     } else if (p == 2) {
       if (psb_data.energy == HI) {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high1, grid_start_high2, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high1, grid_stop_high2, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high1, grid_start_high2, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high1, grid_stop_high2, trigger_width_filtered);
       }
       else {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low1, grid_start_low2, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low1, grid_stop_low2, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low1, grid_start_low2, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low1, grid_stop_low2, trigger_width_filtered);
       }
     }
     else if (p == 3) {
       if (psb_data.energy == HI) {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high2, grid_start_high3, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high2, grid_stop_high3, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high2, grid_start_high3, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high2, grid_stop_high3, trigger_width_filtered);
       } else {
-	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low2, grid_start_low3, psb_data.trigger_filtered);
-	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low2, grid_stop_low3, psb_data.trigger_filtered);
+	data_grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low2, grid_start_low3, trigger_width_filtered);
+	data_grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low2, grid_stop_low3, trigger_width_filtered);
       }
     }
   }
   
   for (p = 0; p < 6; p++) {
     if (p == 0) {
-      temp = psb_data.grid_stop;     //Grid Width
+      temp = data_grid_stop;     //Grid Width
     } else if (p == 1) {
-      temp = psb_data.grid_start;     //Grid Delay
+      temp = data_grid_start;     //Grid Delay
     } else if (p == 2) {
       temp = psb_data.dose_sample_delay;       //RF PCB Delay  // This is not the current monitor trigger
     } else if (p == 3) {
