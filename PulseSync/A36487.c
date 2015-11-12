@@ -1,7 +1,6 @@
 #include "A36487.h"
 
 // Global Variables
-PULSE_PARAMETERS psb_params;
 PSB_DATA psb_data;
 
 //Limited scope variables
@@ -359,23 +358,22 @@ void DoA36487(void) {
     }
   
     // Update the debugging Data
-    ETMCanSlaveSetDebugRegister(0, (psb_params.grid_delay_high3 << 8) + psb_params.grid_delay_high2);
-    ETMCanSlaveSetDebugRegister(1, (psb_params.grid_delay_high1 << 8) + psb_params.grid_delay_high0);
-    ETMCanSlaveSetDebugRegister(2, (psb_params.pfn_delay_high << 8) + psb_params.dose_sample_delay_high);
-    ETMCanSlaveSetDebugRegister(3, (psb_params.grid_width_high3 << 8) + psb_params.grid_width_high2);
-    ETMCanSlaveSetDebugRegister(4, (psb_params.grid_width_high1 << 8) + psb_params.grid_width_high0);
-    ETMCanSlaveSetDebugRegister(5, (psb_params.afc_delay_high << 8) + psb_params.magnetron_current_sample_delay_high);
-    ETMCanSlaveSetDebugRegister(6, (psb_params.grid_delay_low3 << 8) + psb_params.grid_delay_low2);
-    ETMCanSlaveSetDebugRegister(7, (psb_params.grid_delay_low1 << 8) + psb_params.grid_delay_low0);
-    ETMCanSlaveSetDebugRegister(8, (psb_params.pfn_delay_low << 8) + psb_params.dose_sample_delay_low);
-    ETMCanSlaveSetDebugRegister(9, (psb_params.grid_width_low3 << 8) + psb_params.grid_width_low2);
-    ETMCanSlaveSetDebugRegister(10, (psb_params.grid_width_low1 << 8) + psb_params.grid_width_low0);
+    ETMCanSlaveSetDebugRegister(0, (grid_start_high3 << 8) + grid_start_high2);
+    ETMCanSlaveSetDebugRegister(1, (grid_start_high1 << 8) + grid_start_high0);
+    ETMCanSlaveSetDebugRegister(2, (pfn_delay_high << 8) + dose_sample_delay_high);
+    ETMCanSlaveSetDebugRegister(3, (grid_stop_high3 << 8) + grid_stop_high2);
+    ETMCanSlaveSetDebugRegister(4, (grid_stop_high1 << 8) + grid_stop_high0);
+    ETMCanSlaveSetDebugRegister(5, (afc_delay_high << 8) + magnetron_current_sample_delay_high);
+    ETMCanSlaveSetDebugRegister(6, (grid_start_low3 << 8) + grid_start_low2);
+    ETMCanSlaveSetDebugRegister(7, (grid_start_low1 << 8) + grid_start_low0);
+    ETMCanSlaveSetDebugRegister(8, (pfn_delay_low << 8) + dose_sample_delay_low);
+    ETMCanSlaveSetDebugRegister(9, (grid_stop_low3 << 8) + grid_stop_low2);
+    ETMCanSlaveSetDebugRegister(10, (grid_stop_low1 << 8) + grid_stop_low0);
     ETMCanSlaveSetDebugRegister(0xb, psb_data.pulses_on);
     ETMCanSlaveSetDebugRegister(0xC, psb_data.last_period);
     ETMCanSlaveSetDebugRegister(0xD, psb_data.rep_rate_deci_herz);
     ETMCanSlaveSetDebugRegister(0xE, trigger_counter);
     ETMCanSlaveSetDebugRegister(0xF, psb_data.period_filtered);
-
   }
 }
 
@@ -431,7 +429,7 @@ void DoPostTriggerProcess(void) {
     ETMCanSlaveLogPulseData(ETM_CAN_DATA_LOG_REGISTER_PULSE_SYNC_FAST_LOG_0,
 			    psb_data.pulses_on,
 			    7,//(psb_data.trigger_input << 8) & psb_data.trigger_filtered,
-			    8,//(psb_data.grid_width << 8) & psb_data.grid_delay,
+			    8,//(psb_data.grid_stop << 8) & psb_data.grid_start,
 			    9);
   }
   
@@ -558,15 +556,15 @@ void ProgramShiftRegisters(void) {
   Nop();
   
   if (psb_data.energy == HI) {
-    psb_data.dose_sample_delay    = psb_params.dose_sample_delay_high;
-    psb_data.pfn_delay   = psb_params.pfn_delay_high;
-    psb_data.afc_delay   = psb_params.afc_delay_high;
-    psb_data.magnetron_current_sample_delay = psb_params.magnetron_current_sample_delay_high;
+    psb_data.dose_sample_delay    = dose_sample_delay_high;
+    psb_data.pfn_delay   = pfn_delay_high;
+    psb_data.afc_delay   = afc_delay_high;
+    psb_data.magnetron_current_sample_delay = magnetron_current_sample_delay_high;
   } else {
-    psb_data.dose_sample_delay    = psb_params.dose_sample_delay_low;
-    psb_data.pfn_delay   = psb_params.pfn_delay_low;
-    psb_data.afc_delay   = psb_params.afc_delay_low;
-    psb_data.magnetron_current_sample_delay = psb_params.magnetron_current_sample_delay_low;
+    psb_data.dose_sample_delay    = dose_sample_delay_low;
+    psb_data.pfn_delay   = pfn_delay_low;
+    psb_data.afc_delay   = afc_delay_low;
+    psb_data.magnetron_current_sample_delay = magnetron_current_sample_delay_low;
   }
      
   
@@ -577,55 +575,55 @@ void ProgramShiftRegisters(void) {
     
   if (p == 0) {
     if (psb_data.energy == HI) {
-      psb_data.grid_delay = psb_params.grid_delay_high0;
-      psb_data.grid_width = psb_params.grid_width_high0;
+      psb_data.grid_start = grid_start_high0;
+      psb_data.grid_stop = grid_stop_high0;
     } else {
-      psb_data.grid_delay = psb_params.grid_delay_low0;
-      psb_data.grid_width = psb_params.grid_width_low0;
+      psb_data.grid_start = grid_start_low0;
+      psb_data.grid_stop = grid_stop_low0;
     }
   } else if (p >= 4) {
     if (psb_data.energy == HI) {
-      psb_data.grid_delay = psb_params.grid_delay_high3;
-      psb_data.grid_width = psb_params.grid_width_high3;
+      psb_data.grid_start = grid_start_high3;
+      psb_data.grid_stop = grid_stop_high3;
     } else {
-      psb_data.grid_delay = psb_params.grid_delay_low3;
-      psb_data.grid_width = psb_params.grid_width_low3;
+      psb_data.grid_start = grid_start_low3;
+      psb_data.grid_stop = grid_stop_low3;
     }
   } else { // interpolation
     if (p == 1) {
       if (psb_data.energy == HI) {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_high0, psb_params.grid_delay_high1, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_high0, psb_params.grid_width_high1, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high0, grid_start_high1, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high0, grid_stop_high1, psb_data.trigger_filtered);
       } else {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_low0, psb_params.grid_delay_low1, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_low0, psb_params.grid_width_low1, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low0, grid_start_low1, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low0, grid_stop_low1, psb_data.trigger_filtered);
       }
     } else if (p == 2) {
       if (psb_data.energy == HI) {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_high1, psb_params.grid_delay_high2, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_high1, psb_params.grid_width_high2, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high1, grid_start_high2, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high1, grid_stop_high2, psb_data.trigger_filtered);
       }
       else {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_low1, psb_params.grid_delay_low2, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_low1, psb_params.grid_width_low2, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low1, grid_start_low2, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low1, grid_stop_low2, psb_data.trigger_filtered);
       }
     }
     else if (p == 3) {
       if (psb_data.energy == HI) {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_high2, psb_params.grid_delay_high3, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_high2, psb_params.grid_width_high3, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_high2, grid_start_high3, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_high2, grid_stop_high3, psb_data.trigger_filtered);
       } else {
-	psb_data.grid_delay = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_delay_low2, psb_params.grid_delay_low3, psb_data.trigger_filtered);
-	psb_data.grid_width = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], psb_params.grid_width_low2, psb_params.grid_width_low3, psb_data.trigger_filtered);
+	psb_data.grid_start = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_start_low2, grid_start_low3, psb_data.trigger_filtered);
+	psb_data.grid_stop = GetInterpolationValue(dose_intensities[p - 1], dose_intensities[p], grid_stop_low2, grid_stop_low3, psb_data.trigger_filtered);
       }
     }
   }
   
   for (p = 0; p < 6; p++) {
     if (p == 0) {
-      temp = psb_data.grid_width;     //Grid Width
+      temp = psb_data.grid_stop;     //Grid Width
     } else if (p == 1) {
-      temp = psb_data.grid_delay;     //Grid Delay
+      temp = psb_data.grid_start;     //Grid Delay
     } else if (p == 2) {
       temp = psb_data.dose_sample_delay;       //RF PCB Delay  // This is not the current monitor trigger
     } else if (p == 3) {
@@ -911,7 +909,7 @@ void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void) {
 // Executes the CAN Commands
 void ETMCanSlaveExecuteCMDBoardSpecific(ETMCanMessage* message_ptr) {
   unsigned int index_word;
-  unsigned int temp;
+  //unsigned int temp;
   index_word = message_ptr->word3;
   switch (index_word) 
     {
@@ -920,66 +918,30 @@ void ETMCanSlaveExecuteCMDBoardSpecific(ETMCanMessage* message_ptr) {
       */
             
     case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_HIGH_ENERGY_TIMING_REG_0:
-      temp = (message_ptr->word2 & 0xFF00) >> 8;
-      psb_params.grid_delay_high3 = temp;
-      temp = message_ptr->word2 & 0x00FF;
-      psb_params.grid_delay_high2 = temp;
-      temp = (message_ptr->word1 & 0xFF00) >> 8;
-      psb_params.grid_delay_high1 = temp;
-      temp = message_ptr->word1 & 0x00FF;
-      psb_params.grid_delay_high0 = temp;
-      temp = (message_ptr->word0 & 0xFF00) >> 8;
-      psb_params.pfn_delay_high = temp;
-      temp = message_ptr->word0 & 0x00FF;
-      psb_params.dose_sample_delay_high = temp;
+      *(unsigned int*)&grid_start_high3 = message_ptr->word2;
+      *(unsigned int*)&grid_start_high1 = message_ptr->word1;
+      *(unsigned int*)&dose_sample_delay_high = message_ptr->word0;
       psb_data.counter_config_received |= 0b0001;
       break;
 
     case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_HIGH_ENERGY_TIMING_REG_1:
-      temp = (message_ptr->word2 & 0xFF00) >> 8;
-      psb_params.grid_width_high3 = temp;
-      temp = message_ptr->word2 & 0x00FF;
-      psb_params.grid_width_high2 = temp;
-      temp = (message_ptr->word1 & 0xFF00) >> 8;
-      psb_params.grid_width_high1 = temp;
-      temp = message_ptr->word1 & 0x00FF;
-      psb_params.grid_width_high0 = temp;
-      temp = (message_ptr->word0 & 0xFF00) >> 8;
-      psb_params.afc_delay_high = temp;
-      temp = message_ptr->word0 & 0x00FF;
-      psb_params.magnetron_current_sample_delay_high = temp;
+      *(unsigned int*)&grid_stop_high3 = message_ptr->word2;
+      *(unsigned int*)&grid_stop_high1 = message_ptr->word1;
+      *(unsigned int*)&magnetron_current_sample_delay_high = message_ptr->word0;
       psb_data.counter_config_received |=0b0010;
       break;
 
     case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_LOW_ENERGY_TIMING_REG_0:
-      temp = (message_ptr->word2 & 0xFF00) >> 8;
-      psb_params.grid_delay_low3 = temp;
-      temp = message_ptr->word2 & 0x00FF;
-      psb_params.grid_delay_low2 = temp;
-      temp = (message_ptr->word1 & 0xFF00) >> 8;
-      psb_params.grid_delay_low1 = temp;
-      temp = message_ptr->word1 & 0x00FF;
-      psb_params.grid_delay_low0 = temp;
-      temp = (message_ptr->word0 & 0xFF00) >> 8;
-      psb_params.pfn_delay_low = temp;
-      temp = message_ptr->word0 & 0x00FF;
-      psb_params.dose_sample_delay_low = temp;
+      *(unsigned int*)&grid_start_low3 = message_ptr->word2;
+      *(unsigned int*)&grid_start_low1 = message_ptr->word1;
+      *(unsigned int*)&dose_sample_delay_low = message_ptr->word0;
       psb_data.counter_config_received |= 0b0100;
       break;
 
     case ETM_CAN_REGISTER_PULSE_SYNC_SET_1_LOW_ENERGY_TIMING_REG_1:
-      temp = (message_ptr->word2 & 0xFF00) >> 8;
-      psb_params.grid_width_low3 = temp;
-      temp = message_ptr->word2 & 0x00FF;
-      psb_params.grid_width_low2 = temp;
-      temp = (message_ptr->word1 & 0xFF00) >> 8;
-      psb_params.grid_width_low1 = temp;
-      temp = message_ptr->word1 & 0x00FF;
-      psb_params.grid_width_low0 = temp;
-      temp = (message_ptr->word0 & 0xFF00) >> 8;
-      psb_params.afc_delay_low = temp;
-      temp = message_ptr->word0 & 0x00FF;
-      psb_params.magnetron_current_sample_delay_low = temp;
+      *(unsigned int*)&grid_stop_low3 = message_ptr->word2;
+      *(unsigned int*)&grid_stop_low1 = message_ptr->word1;
+      *(unsigned int*)&magnetron_current_sample_delay_low = message_ptr->word0;
       psb_data.counter_config_received |= 0b1000;
       break;
 

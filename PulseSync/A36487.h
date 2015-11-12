@@ -24,38 +24,6 @@
 
 
 
-
-//These values are received from the ethernet control board
-typedef struct{
-    unsigned char grid_delay_high3;
-    unsigned char grid_delay_high2;
-    unsigned char grid_delay_high1;
-    unsigned char grid_delay_high0;
-    unsigned char grid_delay_low3;
-    unsigned char grid_delay_low2;
-    unsigned char grid_delay_low1;
-    unsigned char grid_delay_low0;
-    unsigned char grid_width_high3;
-    unsigned char grid_width_high2;
-    unsigned char grid_width_high1;
-    unsigned char grid_width_high0;
-    unsigned char grid_width_low3;
-    unsigned char grid_width_low2;
-    unsigned char grid_width_low1;
-    unsigned char grid_width_low0;
-    unsigned char pfn_delay_high;
-    unsigned char pfn_delay_low;
-    unsigned char afc_delay_high;
-    unsigned char afc_delay_low;
-    unsigned char dose_sample_delay_high;
-    unsigned char dose_sample_delay_low;
-    unsigned char magnetron_current_sample_delay_high;
-    unsigned char magnetron_current_sample_delay_low;
-} PULSE_PARAMETERS;
-
-
-
-
 //These values are calculated or measured by the pulse sync board
 typedef struct{
   //unsigned int can_counter_ms;
@@ -69,8 +37,8 @@ typedef struct{
     unsigned int trigger_complete;
     unsigned char trigger_input;    //measured trigger
     unsigned char trigger_filtered; //filtered trigger
-    unsigned char grid_delay;       //interpolated delay
-    unsigned char grid_width;       //interpolated width
+    unsigned char grid_start;       //interpolated delay
+    unsigned char grid_stop;       //interpolated width
     unsigned char dose_sample_delay;         //calculated RF PCB Delay (target current)
     unsigned char pfn_delay;
     unsigned char afc_delay;
@@ -96,7 +64,6 @@ typedef struct  {
 extern CommandStringStruct command_string;
 extern BUFFERBYTE64 uart2_input_buffer;
 extern BUFFERBYTE64 uart2_output_buffer;
-extern PULSE_PARAMETERS psb_params;
 extern PSB_DATA psb_data;
 
 
@@ -177,25 +144,37 @@ extern PSB_DATA psb_data;
 
 
 
+// #defines that set up the log data variables
 
 
+#define grid_start_high3          *(unsigned char*)&slave_board_data.log_data[0]
+#define grid_start_high2          *((unsigned char*)&slave_board_data.log_data[0] + 1)
+#define grid_start_high1          *(unsigned char*)&slave_board_data.log_data[1]
+#define grid_start_high0          *((unsigned char*)&slave_board_data.log_data[1] + 1)
+#define dose_sample_delay_high    *(unsigned char*)&slave_board_data.log_data[2]
+#define pfn_delay_high            *((unsigned char*)&slave_board_data.log_data[2] + 1)
+
+#define grid_stop_high3           *(unsigned char*)&slave_board_data.log_data[4]
+#define grid_stop_high2           *((unsigned char*)&slave_board_data.log_data[4] + 1)
+#define grid_stop_high1           *(unsigned char*)&slave_board_data.log_data[5]
+#define grid_stop_high0           *((unsigned char*)&slave_board_data.log_data[5] + 1)
+#define magnetron_current_sample_delay_high    *(unsigned char*)&slave_board_data.log_data[6]
+#define afc_delay_high            *((unsigned char*)&slave_board_data.log_data[6] + 1)
 
 
+#define grid_start_low3           *(unsigned char*)&slave_board_data.log_data[8]
+#define grid_start_low2           *((unsigned char*)&slave_board_data.log_data[8] + 1)
+#define grid_start_low1           *(unsigned char*)&slave_board_data.log_data[9]
+#define grid_start_low0           *((unsigned char*)&slave_board_data.log_data[9] + 1)
+#define dose_sample_delay_low     *(unsigned char*)&slave_board_data.log_data[10]
+#define pfn_delay_low             *((unsigned char*)&slave_board_data.log_data[10] + 1)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#define grid_stop_low3            *(unsigned char*)&slave_board_data.log_data[12]
+#define grid_stop_low2            *((unsigned char*)&slave_board_data.log_data[12] + 1)
+#define grid_stop_low1            *(unsigned char*)&slave_board_data.log_data[13]
+#define grid_stop_low0            *((unsigned char*)&slave_board_data.log_data[13] + 1)
+#define magnetron_current_sample_delay_low    *(unsigned char*)&slave_board_data.log_data[14]
+#define afc_delay_low             *((unsigned char*)&slave_board_data.log_data[14] + 1)
 
 
 
