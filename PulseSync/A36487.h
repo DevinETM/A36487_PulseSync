@@ -141,15 +141,21 @@ extern PSB_DATA psb_data;
 //#define A35997_U2BRG_VALUE         (unsigned int)(((FCY/UART2_BAUDRATE)/16)-1)
 
 
-#define _PERSONALITY_SELECT_BIT_0                  _CONTROL_3
-#define _PERSONALITY_SELECT_BIT_1                  _CONTROL_4
+//#define _PERSONALITY_SELECT_BIT_0                  _CONTROL_3
+//#define _PERSONALITY_SELECT_BIT_1                  _CONTROL_4
 
 
 #define _STATUS_CUSTOMER_HV_DISABLE                _WARNING_0
 #define _STATUS_CUSTOMER_X_RAY_DISABLE             _WARNING_1
-
 #define _STATUS_LOW_MODE_OVERRIDE                  _WARNING_2
 #define _STATUS_HIGH_MODE_OVERRIDE                 _WARNING_3
+#define _STATUS_PERSONALITY_READ_COMPLETE          _WARNING_4
+
+#define _PERSONALITY_BIT_0                         _NOT_LOGGED_0
+#define _PERSONALITY_BIT_1                         _NOT_LOGGED_1
+#define _PERSONALITY_BIT_2                         _NOT_LOGGED_2
+#define _PERSONALITY_BIT_3                         _NOT_LOGGED_3
+
 
 #define _FAULT_PANEL                               _FAULT_0
 #define _FAULT_KEYLOCK                             _FAULT_1
@@ -290,7 +296,7 @@ extern PSB_DATA psb_data;
 #define PIN_LED_STANDBY                     _LATG12
 #define TRIS_PIN_LED_STANDBY                _TRISG12
 //#define PIN_LED_WARMUP                      _LATG14  //This is used for CAN status
-#define TRIS_PIN_LED_WARMUP                 _TRISG14
+//#define TRIS_PIN_LED_WARMUP                 _TRISG14
 #define PIN_LED_XRAY_ON                     _LATG15
 #define TRIS_PIN_LED_XRAY_ON                _TRISG15
 #define PIN_LED_SUMFLT                      _LATC1

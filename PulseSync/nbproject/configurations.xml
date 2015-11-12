@@ -21,11 +21,6 @@
       <itemPath>Makefile</itemPath>
     </logicalFolder>
   </logicalFolder>
-  <sourceRootList>
-    <Elem>.</Elem>
-    <Elem>../../ETM_Modules/ETM_BUFFER_BYTE_64</Elem>
-    <Elem>../../P1395_Modules</Elem>
-  </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
     <conf name="default" type="2">

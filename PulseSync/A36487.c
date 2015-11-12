@@ -213,22 +213,41 @@ void InitializeA36487(void) {
   
 
   psb_data.personality = 0;
-  psb_data.personality = ReadDosePersonality();
-  psb_data.personality = 255; // DPARKER ADDED FOR TESTING TO MAKE IT WORK
+  psb_data.personality = ReadDosePersonality(); // DPARKER UPDATE THIS FUNCTION IT DOESN'T WORK
+  psb_data.personality = 0; // DPARKER ADDED FOR TESTING TO MAKE IT WORK
 
-  _PERSONALITY_SELECT_BIT_0 = psb_data.personality & 0x0001;
-  _PERSONALITY_SELECT_BIT_1 = psb_data.personality & 0x0002;
-  
-  
+  _STATUS_PERSONALITY_READ_COMPLETE = 1;
+
+  _PERSONALITY_BIT_0 = 0;
+  _PERSONALITY_BIT_1 = 0;
+  _PERSONALITY_BIT_2 = 0;
+  _PERSONALITY_BIT_3 = 0;
+
+  if (psb_data.personality & 0x0001) {
+    _PERSONALITY_BIT_0 = 1;
+  }
+
+  if (psb_data.personality & 0x0002) {
+    _PERSONALITY_BIT_1 = 1;
+  }
+
+  if (psb_data.personality & 0x0004) {
+    _PERSONALITY_BIT_2 = 1;
+  }
+
+  if (psb_data.personality & 0x0008) {
+    _PERSONALITY_BIT_3 = 1;
+  }
+
 
 #define AGILE_REV      77
 #define SERIAL_NUMBER  100
   
-  ETMCanSlaveInitialize(CAN_PORT_2, FCY, ETM_CAN_ADDR_PULSE_SYNC_BOARD, _LATG14, 4);
-  ETMCanSlaveLoadConfiguration(36582, 250, AGILE_REV, FIRMWARE_AGILE_REV, FIRMWARE_BRANCH, FIRMWARE_BRANCH_REV, SERIAL_NUMBER);
+  ETMCanSlaveInitialize(CAN_PORT_1, FCY, ETM_CAN_ADDR_PULSE_SYNC_BOARD, _PIN_RG14, 4);
+  ETMCanSlaveLoadConfiguration(36487, 250, AGILE_REV, FIRMWARE_AGILE_REV, FIRMWARE_BRANCH, FIRMWARE_BRANCH_REV, SERIAL_NUMBER);
 }
 
-
+unsigned int trigger_counter;
 
 void DoA36487(void) {
   unsigned long temp32;
@@ -237,7 +256,9 @@ void DoA36487(void) {
   
   if (psb_data.trigger_complete) {
     DoPostTriggerProcess();
+    trigger_counter++;
     psb_data.trigger_complete = 0;
+    
   }
 
 
@@ -349,7 +370,11 @@ void DoA36487(void) {
     ETMCanSlaveSetDebugRegister(8, (psb_params.pfn_delay_low << 8) + psb_params.dose_sample_delay_low);
     ETMCanSlaveSetDebugRegister(9, (psb_params.grid_width_low3 << 8) + psb_params.grid_width_low2);
     ETMCanSlaveSetDebugRegister(10, (psb_params.grid_width_low1 << 8) + psb_params.grid_width_low0);
-    ETMCanSlaveSetDebugRegister(11, (psb_params.afc_delay_low << 8) + psb_params.magnetron_current_sample_delay_low);
+    ETMCanSlaveSetDebugRegister(0xb, psb_data.pulses_on);
+    ETMCanSlaveSetDebugRegister(0xC, psb_data.last_period);
+    ETMCanSlaveSetDebugRegister(0xD, psb_data.rep_rate_deci_herz);
+    ETMCanSlaveSetDebugRegister(0xE, trigger_counter);
+    ETMCanSlaveSetDebugRegister(0xF, psb_data.period_filtered);
 
   }
 }
@@ -814,7 +839,7 @@ void InitPins() {
   PIN_LED_READY               = !OLL_LED_ON;
   TRIS_PIN_LED_STANDBY        = TRIS_OUTPUT_MODE;
   PIN_LED_STANDBY             = !OLL_LED_ON;
-  TRIS_PIN_LED_WARMUP         = TRIS_OUTPUT_MODE;
+  //TRIS_PIN_LED_WARMUP         = TRIS_OUTPUT_MODE;
   //    PIN_LED_WARMUP              = !OLL_LED_ON;
   TRIS_PIN_LED_XRAY_ON        = TRIS_OUTPUT_MODE;
   PIN_LED_XRAY_ON             = !OLL_LED_ON;
@@ -849,31 +874,32 @@ void InitPins() {
   ADCON1 = 0x0000;
 }
 
-
+#define MIN_PERIOD 150 // 960uS 1041 Hz// 
 void __attribute__((interrupt(__save__(CORCON,SR)), no_auto_psv)) _INT3Interrupt(void) {
   // A trigger was recieved.
   // THIS DOES NOT MEAN THAT A PULSE WAS GENERATED
   // If (PIN_CPU_XRAY_ENABLE_OUT == OLL_CPU_XRAY_ENABLE)  && (PIN_CUSTOMER_XRAY_ON_IN == ILL_CUSTOMER_BEAM_ENABLE) then we "Probably" generated a pulse
-
+  if ((TMR1 > MIN_PERIOD) || _T1IF) {
+    // Calculate the Trigger PRF
+    // TMR1 is used to time the time between INT3 interrupts
+    psb_data.last_period = TMR1;
+    TMR1 = 0;
+    if (_T1IF) {
+      // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
+      psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
+    }
+    /*
+      if (ETMCanSlaveGetSyncMsgPulseSyncDisableHV() || ETMCanSlaveGetSyncMsgPulseSyncDisableXray()) {
+      // We are not pulsing so set the PRF to the minimum
+      psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
+      }
+    */
+    _T1IF = 0;
+    
+    psb_data.trigger_complete = 1;
+  }
   _INT3IF = 0;		// Clear Interrupt flag
-  
-  // Calculate the Trigger PRF
-  // TMR1 is used to time the time between INT3 interrupts
-  psb_data.last_period = TMR1;
-  TMR1 = 0;
-  if (_T1IF) {
-    // The timer exceed it's period of 400mS - (Will happen if the PRF is less than 2.5Hz)
-    psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
-  }
-  if (ETMCanSlaveGetSyncMsgPulseSyncDisableHV() || ETMCanSlaveGetSyncMsgPulseSyncDisableXray()) {
-    // We are not pulsing so set the PRF to the minimum
-    psb_data.last_period = 62501;  // This will indicate that the PRF is Less than 2.5Hz
-  }
-  _T1IF = 0;
-
-  psb_data.trigger_complete = 1;
-}
-
+}  
 
 void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void) {
     Nop();
