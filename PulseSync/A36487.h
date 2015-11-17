@@ -217,14 +217,14 @@ typedef struct{
 #define PIN_LED_READY                       _LATG13
 #define TRIS_PIN_LED_READY                  _TRISG13
 #define OLL_LED_ON                          0
-#define PIN_LED_STANDBY                     _LATG12
-#define TRIS_PIN_LED_STANDBY                _TRISG12
+//#define PIN_LED_STANDBY                     _LATG12  // This is used by CAN module to indicate board alive
+//#define TRIS_PIN_LED_STANDBY                _TRISG12
 //#define PIN_LED_WARMUP                      _LATG14  //This is used for CAN status
 //#define TRIS_PIN_LED_WARMUP                 _TRISG14
 #define PIN_LED_XRAY_ON                     _LATG15
 #define TRIS_PIN_LED_XRAY_ON                _TRISG15
-#define PIN_LED_SUMFLT                      _LATC1
-#define TRIS_PIN_LED_SUMFLT                 _TRISC1
+//#define PIN_LED_SUMFLT                      _LATC1  // This is used by Can module to indicate not ready
+//#define TRIS_PIN_LED_SUMFLT                 _TRISC1
 
 //Energy Pins
 #define TRIS_PIN_ENERGY_CPU_OUT             _TRISC14

@@ -241,8 +241,8 @@ void InitializeA36487(void) {
 #define AGILE_REV      77
 #define SERIAL_NUMBER  100
   
-  ETMCanSlaveInitialize(CAN_PORT_1, FCY, ETM_CAN_ADDR_PULSE_SYNC_BOARD, _PIN_RG14, 4);
-  ETMCanSlaveLoadConfiguration(36487, 250, AGILE_REV, FIRMWARE_AGILE_REV, FIRMWARE_BRANCH, FIRMWARE_BRANCH_REV, SERIAL_NUMBER);
+  ETMCanSlaveInitialize(CAN_PORT_1, FCY, ETM_CAN_ADDR_PULSE_SYNC_BOARD, _PIN_RG14, 4, _PIN_RG12, _PIN_RC1);
+  ETMCanSlaveLoadConfiguration(36487, 250, FIRMWARE_AGILE_REV, FIRMWARE_BRANCH, FIRMWARE_BRANCH_REV);
 }
 
 unsigned int trigger_counter;
@@ -311,7 +311,7 @@ void DoA36487(void) {
     _T2IF = 0;
 
     psb_data.led_flash_counter++;
-    PIN_LED_STANDBY = ((psb_data.led_flash_counter >> 5) & 0b1);
+    //PIN_LED_STANDBY = ((psb_data.led_flash_counter >> 5) & 0b1);
 
 
     
@@ -323,9 +323,9 @@ void DoA36487(void) {
     }
     
     if (LED_STANDBY_STATUS) {
-      PIN_LED_STANDBY = OLL_LED_ON;
+      //PIN_LED_STANDBY = OLL_LED_ON;
     } else {
-      PIN_LED_STANDBY = !OLL_LED_ON;
+      //PIN_LED_STANDBY = !OLL_LED_ON;
     }
     
     if (LED_READY_STATUS) {
@@ -337,10 +337,10 @@ void DoA36487(void) {
     }
   
     if (LED_SUM_FAULT_STATUS) {
-      PIN_LED_SUMFLT = OLL_LED_ON;
+      //PIN_LED_SUMFLT = OLL_LED_ON;
       PIN_CPU_SUMFLT_OUT = OLL_CPU_SUMFLT;
     } else {
-      PIN_LED_SUMFLT = !OLL_LED_ON;
+      //PIN_LED_SUMFLT = !OLL_LED_ON;
       PIN_CPU_SUMFLT_OUT = !OLL_CPU_SUMFLT;
     }
     
@@ -386,25 +386,25 @@ void DoStartupLEDs(void) {
     case 0:
       PIN_LED_READY   = !OLL_LED_ON;
       PIN_LED_XRAY_ON = !OLL_LED_ON;
-      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      //PIN_LED_SUMFLT  = !OLL_LED_ON;
       break;
 
     case 1:
       PIN_LED_READY   = OLL_LED_ON;
       PIN_LED_XRAY_ON = !OLL_LED_ON;
-      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      //PIN_LED_SUMFLT  = !OLL_LED_ON;
       break;
 
     case 2:
       PIN_LED_READY   = !OLL_LED_ON;
       PIN_LED_XRAY_ON = OLL_LED_ON;
-      PIN_LED_SUMFLT  = !OLL_LED_ON;
+      //PIN_LED_SUMFLT  = !OLL_LED_ON;
       break;
 
     case 3:
       PIN_LED_READY   = !OLL_LED_ON;
       PIN_LED_XRAY_ON = !OLL_LED_ON;
-      PIN_LED_SUMFLT  = OLL_LED_ON;
+      //PIN_LED_SUMFLT  = OLL_LED_ON;
       break;
     }
 }
@@ -835,14 +835,14 @@ void InitPins() {
   //LEDs
   TRIS_PIN_LED_READY          = TRIS_OUTPUT_MODE;
   PIN_LED_READY               = !OLL_LED_ON;
-  TRIS_PIN_LED_STANDBY        = TRIS_OUTPUT_MODE;
-  PIN_LED_STANDBY             = !OLL_LED_ON;
+  //TRIS_PIN_LED_STANDBY        = TRIS_OUTPUT_MODE;
+  //PIN_LED_STANDBY             = !OLL_LED_ON;
   //TRIS_PIN_LED_WARMUP         = TRIS_OUTPUT_MODE;
   //    PIN_LED_WARMUP              = !OLL_LED_ON;
   TRIS_PIN_LED_XRAY_ON        = TRIS_OUTPUT_MODE;
   PIN_LED_XRAY_ON             = !OLL_LED_ON;
-  TRIS_PIN_LED_SUMFLT         = TRIS_OUTPUT_MODE;
-  PIN_LED_SUMFLT              = !OLL_LED_ON;
+  //TRIS_PIN_LED_SUMFLT         = TRIS_OUTPUT_MODE;
+  //PIN_LED_SUMFLT              = !OLL_LED_ON;
   
   // Pins for loading the delay lines
   PIN_SPI_CLK_OUT             = 0;
