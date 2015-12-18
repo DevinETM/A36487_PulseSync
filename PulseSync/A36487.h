@@ -89,42 +89,42 @@ typedef struct{
 
 
 // #defines that set up the log data variables
-#define grid_start_high3          *(unsigned char*)&slave_board_data.log_data[0]
-#define grid_start_high2          *((unsigned char*)&slave_board_data.log_data[0] + 1)
-#define grid_start_high1          *(unsigned char*)&slave_board_data.log_data[1]
-#define grid_start_high0          *((unsigned char*)&slave_board_data.log_data[1] + 1)
-#define dose_sample_delay_high    *(unsigned char*)&slave_board_data.log_data[2]
-#define pfn_delay_high            *((unsigned char*)&slave_board_data.log_data[2] + 1)
+#define grid_start_high3          (*(unsigned char*)&slave_board_data.log_data[0])
+#define grid_start_high2          (*((unsigned char*)&slave_board_data.log_data[0] + 1))
+#define grid_start_high1          (*(unsigned char*)&slave_board_data.log_data[1])
+#define grid_start_high0          (*((unsigned char*)&slave_board_data.log_data[1] + 1))
+#define dose_sample_delay_high    (*(unsigned char*)&slave_board_data.log_data[2])
+#define pfn_delay_high            (*((unsigned char*)&slave_board_data.log_data[2] + 1))
 
-#define grid_stop_high3           *(unsigned char*)&slave_board_data.log_data[4]
-#define grid_stop_high2           *((unsigned char*)&slave_board_data.log_data[4] + 1)
-#define grid_stop_high1           *(unsigned char*)&slave_board_data.log_data[5]
-#define grid_stop_high0           *((unsigned char*)&slave_board_data.log_data[5] + 1)
-#define magnetron_current_sample_delay_high    *(unsigned char*)&slave_board_data.log_data[6]
-#define afc_delay_high            *((unsigned char*)&slave_board_data.log_data[6] + 1)
+#define grid_stop_high3           (*(unsigned char*)&slave_board_data.log_data[4])
+#define grid_stop_high2           (*((unsigned char*)&slave_board_data.log_data[4] + 1))
+#define grid_stop_high1           (*(unsigned char*)&slave_board_data.log_data[5])
+#define grid_stop_high0           (*((unsigned char*)&slave_board_data.log_data[5] + 1))
+#define magnetron_current_sample_delay_high    (*(unsigned char*)&slave_board_data.log_data[6])
+#define afc_delay_high            (*((unsigned char*)&slave_board_data.log_data[6] + 1))
 
 
-#define grid_start_low3           *(unsigned char*)&slave_board_data.log_data[8]
-#define grid_start_low2           *((unsigned char*)&slave_board_data.log_data[8] + 1)
-#define grid_start_low1           *(unsigned char*)&slave_board_data.log_data[9]
-#define grid_start_low0           *((unsigned char*)&slave_board_data.log_data[9] + 1)
-#define dose_sample_delay_low     *(unsigned char*)&slave_board_data.log_data[10]
-#define pfn_delay_low             *((unsigned char*)&slave_board_data.log_data[10] + 1)
+#define grid_start_low3           (*(unsigned char*)&slave_board_data.log_data[8])
+#define grid_start_low2           (*((unsigned char*)&slave_board_data.log_data[8] + 1))
+#define grid_start_low1           (*(unsigned char*)&slave_board_data.log_data[9])
+#define grid_start_low0           (*((unsigned char*)&slave_board_data.log_data[9] + 1))
+#define dose_sample_delay_low     (*(unsigned char*)&slave_board_data.log_data[10])
+#define pfn_delay_low             (*((unsigned char*)&slave_board_data.log_data[10] + 1))
 
-#define grid_stop_low3            *(unsigned char*)&slave_board_data.log_data[12]
-#define grid_stop_low2            *((unsigned char*)&slave_board_data.log_data[12] + 1)
-#define grid_stop_low1            *(unsigned char*)&slave_board_data.log_data[13]
-#define grid_stop_low0            *((unsigned char*)&slave_board_data.log_data[13] + 1)
+#define grid_stop_low3            (*(unsigned char*)&slave_board_data.log_data[12])
+#define grid_stop_low2            (*((unsigned char*)&slave_board_data.log_data[12] + 1))
+#define grid_stop_low1            (*(unsigned char*)&slave_board_data.log_data[13])
+#define grid_stop_low0            (*((unsigned char*)&slave_board_data.log_data[13] + 1))
 #define magnetron_current_sample_delay_low    *(unsigned char*)&slave_board_data.log_data[14]
-#define afc_delay_low             *((unsigned char*)&slave_board_data.log_data[14] + 1)
+#define afc_delay_low             (*((unsigned char*)&slave_board_data.log_data[14] + 1))
 
 #define log_data_rep_rate_deci_hertz        slave_board_data.log_data[3]
 
-#define trigger_width             *((unsigned char*)&slave_board_data.log_data[7] + 0)
-#define trigger_width_filtered    *((unsigned char*)&slave_board_data.log_data[7] + 1)
+#define trigger_width             (*((unsigned char*)&slave_board_data.log_data[7] + 0))
+#define trigger_width_filtered    (*((unsigned char*)&slave_board_data.log_data[7] + 1))
 
-#define data_grid_start           *((unsigned char*)&slave_board_data.log_data[11] + 0)
-#define data_grid_stop            *((unsigned char*)&slave_board_data.log_data[11] + 1)
+#define data_grid_start           (*((unsigned char*)&slave_board_data.log_data[11] + 0))
+#define data_grid_stop            (*((unsigned char*)&slave_board_data.log_data[11] + 1))
 
 /*
 
