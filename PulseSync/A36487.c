@@ -118,7 +118,7 @@ void DoStateMachine(void) {
     while (psb_data.state_machine == STATE_HV_ENABLE) {
       DoA36487();
       
-      if ((ETMCanSlaveGetSyncMsgPulseSyncDisableHV() == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
+      if ((ETMCanSlaveGetSyncMsgPulseSyncDisableXray() == 0) && (PIN_CUSTOMER_BEAM_ENABLE_IN == ILL_CUSTOMER_BEAM_ENABLE)) {
 	psb_data.state_machine = STATE_X_RAY_ENABLE;
       }
       
@@ -428,7 +428,7 @@ void DoPostTriggerProcess(void) {
     // Log Pulse by Pulse data
     ETMCanSlaveLogPulseData(ETM_CAN_DATA_LOG_REGISTER_PULSE_SYNC_FAST_LOG_0,
 			    psb_data.pulses_on,
-			    *(unsigned int*)&trigger_width_filtered,
+			    *(unsigned int*)&trigger_width,
 			    *(unsigned int*)&data_grid_start,
 			    log_data_rep_rate_deci_hertz);
   }
